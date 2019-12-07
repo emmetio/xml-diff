@@ -1,0 +1,29 @@
+{
+  "name": "@emmetio/xml-diff",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha"
+  },
+  "keywords": [],
+  "author": "Sergey Chikuyonok <serge.che@gmail.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/mocha": "^5.2.7",
+    "@types/node": "^12.12.14",
+    "mocha": "^6.2.2",
+    "ts-node": "^8.5.4",
+    "tslint": "^5.20.1",
+    "typescript": "^3.7.3"
+  },
+  "dependencies": {
+    "@emmetio/html-matcher": "^1.2.0",
+    "@emmetio/scanner": "0.0.7",
+    "diff-match-patch": "^1.0.4"
+  },
+  "mocha": {
+    "require": "ts-node/register",
+    "spec": "./test/*.ts"
+  }
+}
