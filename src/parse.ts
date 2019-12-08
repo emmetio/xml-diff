@@ -15,8 +15,9 @@ export interface ParsedModel {
 export default function parse(text: string, options?: Partial<ScannerOptions>): ParsedModel {
     const markupTokens = markup(text, options);
     const wsTokens = whitespace(text, markupTokens);
-    const tokens = markupTokens.concat(wsTokens)
-        .sort((a, b) => a.location - b.location);
+    const tokens = markupTokens
+        .concat(wsTokens)
+        .sort(tokenSorter);
     return {
         tokens,
         content: rawContent(text, tokens)
@@ -28,12 +29,15 @@ export default function parse(text: string, options?: Partial<ScannerOptions>): 
  */
 export function markup(text: string, options?: Partial<ScannerOptions>): Token[] {
     const tokens: Token[] = [];
+    let offset = 0;
     scan(text, (name, type, start, end) => {
         tokens.push({
             name, type,
             value: text.substring(start, end),
-            location: start
+            location: start - offset,
+            order: start
         });
+        offset += end - start;
     }, createOptions({ allTokens: true, ...options }));
 
     return tokens;
@@ -98,12 +102,15 @@ export function whitespace(text: string, skip?: Token[], offset = 0): Token[] {
  * Returns raw content between given tokens
  */
 export function rawContent(text: string, tokens: Token[], baseOffset = 0): string {
-    let offset = baseOffset;
+    // let offset = baseOffset;
     let spaceOffset = 0;
+    let prev = 0;
+    let accum = 0;
 
     return tokens.map(token => {
-        let result = text.slice(offset - baseOffset, token.location - baseOffset);
-        offset = token.location + token.value.length;
+        let result = text.slice(prev + accum, token.location + accum);
+        accum += token.value.length;
+        prev = token.location;
         token.location += spaceOffset;
 
         if (token.type === ElementTypeAddon.Space && token.offset) {
@@ -112,5 +119,13 @@ export function rawContent(text: string, tokens: Token[], baseOffset = 0): strin
         }
 
         return result;
-    }).join('') + text.slice(offset - baseOffset);
+    }).join('') + text.slice(prev + accum);
+}
+
+/**
+ * Default token sorter
+ */
+export function tokenSorter(a: Token, b: Token): number {
+    return a.location - b.location
+        || ((a.order || 0) - (b.order || 0));
 }
