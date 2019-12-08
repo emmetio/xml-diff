@@ -1,10 +1,16 @@
 {
   "name": "@emmetio/xml-diff",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Performs diff between two XML documents",
+  "main": "./dist/xml-diff.cjs.js",
+  "module": "./dist/xml-diff.es.js",
+  "types": "./dist/index.d.ts",
   "scripts": {
-    "test": "mocha"
+    "test": "mocha",
+    "lint": "tslint ./src/*.ts",
+    "build": "rollup -c",
+    "clean": "rm -rf ./dist",
+    "prepare": "npm run lint && npm test && npm run clean && npm run build"
   },
   "keywords": [],
   "author": "Sergey Chikuyonok <serge.che@gmail.com>",
@@ -14,6 +20,10 @@
     "@types/mocha": "^5.2.7",
     "@types/node": "^12.12.14",
     "mocha": "^6.2.2",
+    "rollup": "^1.27.9",
+    "rollup-plugin-commonjs": "^10.1.0",
+    "rollup-plugin-node-resolve": "^5.2.0",
+    "rollup-plugin-typescript2": "^0.25.3",
     "ts-node": "^8.5.4",
     "tslint": "^5.20.1",
     "typescript": "^3.7.3"
