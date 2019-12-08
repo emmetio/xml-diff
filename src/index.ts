@@ -1,8 +1,22 @@
+import diff from './diff';
+import parse, { createConsumer } from './consumer';
+import createOptions, { Options } from './options';
 import { ParsedModel } from './types';
 
-export { default as parse, createConsumer } from './consumer';
-export { ParsedModel, Token, TokenType, ElementTypeAddon } from './types';
-export { default as createOptions, Options } from './options';
+export { diff, parse, createOptions, createConsumer, Options, ParsedModel };
+export { Token, TokenType, ElementTypeAddon } from './types';
+
+/**
+ * Calculates diff between two XML documents and returns `to` document content
+ * with diff patches applied to it as `<ins>`/`<del>` tags
+ */
+export default function diffDocuments(from: string, to: string, options?: Partial<Options>): string {
+    const opt = createOptions(options);
+    const fromDoc = parse(from, opt);
+    const toDoc = parse(to, opt);
+    const diffDoc = diff(fromDoc, toDoc, opt);
+    return stringify(diffDoc);
+}
 
 /**
  * Returns restored source from given parsed model
