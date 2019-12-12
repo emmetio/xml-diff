@@ -22,7 +22,7 @@ console.log(result);
 ```
 
 ---
-> Project development is sponsored by [XCential Corporation](https://xcential.com)
+> Project development is sponsored by [Xcential Corporation](https://xcential.com)
 ---
 
 ## Features
