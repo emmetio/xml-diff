@@ -45,5 +45,5 @@ This module exposes main `diff(from, to)` function which accepts two text docume
 * Takes XML document and strips all markup data from it (tags, comments, CDATA etc.), leaving plain text content: `<div>Hello <b>world</b>!</div>` → `Hello world!`.
 * Collapses and reduces insignificant white space characters like new lines, tabs and so on into a single space.
 * Performs diff with Google’s [Diff Match Patch](https://github.com/google/diff-match-patch) library.
-* Applies patcher to second (`to`) plain content.
+* Applies patches to second document’s (`to`) plain content.
 * Restores markup and whitespace data of original document
