@@ -10,14 +10,15 @@ export interface Options extends ScannerOptions {
     /** List of inline-level tag names. Used for better document patching */
     inlineElements: string[];
 
-    baseStart?: number;
-    baseEnd?: number;
+    /** Location in source code where content parsing starts */
+    baseStart: number;
 }
 
 const defaultOptions: Partial<Options> = {
     compact: true,
     normalizeSpace: true,
     allTokens: true,
+    baseStart: 0,
     inlineElements: [
         'a', 'abbr', 'acronym', 'applet', 'b', 'basefont', 'bdo',
         'big', 'br', 'button', 'cite', 'code', 'del', 'dfn', 'em', 'font', 'i',

@@ -17,11 +17,7 @@ export interface ConsumerState {
 }
 
 export interface Consumer {
-    /**
-     * @param token A token to consume
-     */
-    consume(token: Token): void;
-
+    state: ConsumerState;
     /**
      * @param name Name of the token for identification
      * @param type Token type
@@ -40,7 +36,7 @@ const reSpace = /[\s\r\n]+/g;
 export default function parse(text: string, options: Options = createOptions()) {
     const { consume, finalize } = createConsumer(text, options);
     scan(text, consume, options);
-    return finalize(options.baseEnd);
+    return finalize(text.length);
 }
 
 /**
@@ -48,50 +44,44 @@ export default function parse(text: string, options: Options = createOptions()) 
  * that should receive markup tokens and `finalize` function to produce final
  * document model
  * @param text Original source code being parsed
- * @param baseStart Starting location in `text` where XML is consumed
- * @param baseEnd Ending location in `text` until XML is consumed
  */
 export function createConsumer(text: string, options: Options = createOptions()): Consumer {
     const state: ConsumerState = {
         text,
         tokens: [],
-        options: createOptions(options),
+        options,
         content: '',
         hasContent: false,
-        prev: 0,
+        prev: options.baseStart || 0,
         offset: 0
     };
-    const baseStart = state.options.baseStart || 0;
 
     return {
-        consume(name: string | Token, type?: TokenType, start?: number, end?: number) {
-            const pos = baseStart + start! - state.offset;
-
+        state,
+        consume(name: string, type: TokenType, start: number, end: number) {
             if (state.options.normalizeSpace) {
-                normalizeWhitespace(state.prev + state.offset, pos + state.offset, state);
+                normalizeWhitespace(state.prev, start, state);
             } else {
-                state.content += text.slice(state.prev + state.offset, pos + state.offset);
+                state.content += text.slice(state.prev, start);
             }
 
-            const token: Token = typeof name === 'string'
-                ? {
-                    name, type,
-                    value: text.substring(start!, end),
-                    location: baseStart + start! - state.offset,
-                    order: start
-                } as Token
-            : name;
+            const token: Token = {
+                name, type,
+                value: text.substring(start, end),
+                location: start - state.offset,
+                order: start
+            };
 
             state.tokens.push(token);
-            state.prev = token.location;
+            state.prev = end;
             state.offset += token.value.length;
         },
         finalize(baseEnd = text.length) {
             if (state.options.normalizeSpace) {
-                normalizeWhitespace(state.prev + state.offset, baseEnd, state);
+                normalizeWhitespace(state.prev, baseEnd, state);
                 fixTrailingSpace(state);
             } else {
-                state.content += text.slice(state.prev + state.offset, baseEnd);
+                state.content += text.slice(state.prev, baseEnd);
             }
 
             return {
@@ -111,7 +101,6 @@ function normalizeWhitespace(from: number, to: number, state: ConsumerState) {
     let m: RegExpExecArray | null;
     let prev = 0;
     let hasSpace = false;
-    const baseStart = state.options.baseStart || 0;
     const fragment = state.text.substring(from, to);
 
     while (m = reSpace.exec(fragment)) {
@@ -124,7 +113,7 @@ function normalizeWhitespace(from: number, to: number, state: ConsumerState) {
                 name: '#whitespace',
                 type: ElementTypeAddon.Space,
                 value: m[0],
-                location: baseStart + from + m.index - state.offset,
+                location: from + m.index - state.offset,
                 order: from + m.index
             };
 

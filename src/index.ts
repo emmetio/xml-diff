@@ -1,9 +1,9 @@
 import diff from './diff';
-import parse, { createConsumer } from './consumer';
+import parse, { createConsumer, Consumer } from './consumer';
 import createOptions, { Options } from './options';
 import { ParsedModel } from './types';
 
-export { diff, parse, createOptions, createConsumer, Options, ParsedModel };
+export { diff, parse, createOptions, createConsumer, Options, ParsedModel, Consumer };
 export { Token, TokenType, ElementTypeAddon } from './types';
 
 /**

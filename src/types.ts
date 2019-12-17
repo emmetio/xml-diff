@@ -10,6 +10,7 @@ export const enum ElementTypeAddon {
     InsertBefore = 101,
     InsertAfter = 102,
     Delete = 103,
+    Custom = 200,
 }
 
 export type TokenType = ElementType | ElementTypeAddon;
