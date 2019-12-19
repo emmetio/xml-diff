@@ -46,13 +46,14 @@ export default function parse(text: string, options: Options = createOptions()) 
  * @param text Original source code being parsed
  */
 export function createConsumer(text: string, options: Options = createOptions()): Consumer {
+    const baseStart = options.baseStart || 0;
     const state: ConsumerState = {
         text,
         tokens: [],
         options,
         content: '',
         hasContent: false,
-        prev: options.baseStart || 0,
+        prev: baseStart,
         offset: 0
     };
 
@@ -68,7 +69,7 @@ export function createConsumer(text: string, options: Options = createOptions())
             const token: Token = {
                 name, type,
                 value: text.substring(start, end),
-                location: start - state.offset,
+                location: start - baseStart - state.offset,
                 order: start
             };
 
@@ -113,7 +114,7 @@ function normalizeWhitespace(from: number, to: number, state: ConsumerState) {
                 name: '#whitespace',
                 type: ElementTypeAddon.Space,
                 value: m[0],
-                location: from + m.index - state.offset,
+                location: from + m.index - state.offset - (state.options.baseStart || 0),
                 order: from + m.index
             };
 
