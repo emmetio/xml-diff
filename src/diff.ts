@@ -34,8 +34,9 @@ export default function diff(from: ParsedModel, to: ParsedModel, options: Option
             offset += d[1].length;
 
             // Move all tokens of destination document to output result
-            while (toTokens.length && toTokens[0].location < offset) {
-                if (toTokens[0].location === offset && toTokens[0].type === ElementType.Open) {
+            while (toTokens.length) {
+                const first = toTokens[0]!;
+                if (first.location > offset || (first.location === offset && first.type === ElementType.Open)) {
                     break;
                 }
 
