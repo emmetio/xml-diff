@@ -9,6 +9,9 @@ import createOptions, { Options } from './options';
  */
 export default function diff(from: ParsedModel, to: ParsedModel, options: Options = createOptions()): ParsedModel {
     const dmp = new diff_match_patch();
+    if (options.dmp) {
+        Object.assign(dmp, options.dmp);
+    }
     const diffs = dmp.diff_main(from.content, to.content);
     dmp.diff_cleanupSemantic(diffs);
     const toTokens = to.tokens.slice();
