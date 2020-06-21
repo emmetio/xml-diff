@@ -130,5 +130,14 @@ describe('Diff documents', () => {
             ),
             '111 222 <del><span>3<em>3</em>3</span> </del>555'
         );
+
+        equal(
+            diff(
+                '111 <span>222 3<em>3</em>3</span> 555',
+                '888 111 222 555',
+                { preserveTags: ['span', 'em'] }
+            ),
+            '<ins>888 </ins>111 222 <del><span>3<em>3</em>3</span> </del>555'
+        );
     });
 });

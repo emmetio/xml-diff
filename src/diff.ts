@@ -17,6 +17,7 @@ export default function diff(from: ParsedModel, to: ParsedModel, options: Option
     const toTokens = to.tokens.slice();
     let tokens: Token[] = [];
     let offset = 0;
+    let fromOffset = 0;
 
     diffs.forEach(d => {
         if (d[0] === DIFF_DELETE && d[1]) {
@@ -25,8 +26,9 @@ export default function diff(from: ParsedModel, to: ParsedModel, options: Option
                 name: d[1],
                 type: ElementTypeAddon.Delete,
                 location: offset,
-                value: `<del>${reconstructDel(from, offset, d[1], options.preserveTags)}</del>`
+                value: `<del>${reconstructDel(from, fromOffset, d[1], options.preserveTags)}</del>`
             });
+            fromOffset += d[1].length;
         } else if (d[0] === DIFF_INSERT) {
             // Inserted fragment: should insert open and close tags at proper
             // positions and maintain valid XML nesting
@@ -35,6 +37,7 @@ export default function diff(from: ParsedModel, to: ParsedModel, options: Option
         } else if (d[0] === DIFF_EQUAL) {
             // Unmodified content
             offset += d[1].length;
+            fromOffset += d[1].length;
 
             // Move all tokens of destination document to output result
             while (toTokens.length) {
