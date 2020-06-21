@@ -64,6 +64,12 @@ export interface Options extends ScannerOptions {
 
     /** Options for diff-match-patch module */
     dmp?: Partial<DMPOptions>;
+
+    /**
+     * Tag names of original document that should be preserved when inserting
+     * removed fragments into destination document
+     */
+    preserveTags: string[];
 }
 
 const defaultOptions: Partial<Options> = {
@@ -71,6 +77,7 @@ const defaultOptions: Partial<Options> = {
     normalizeSpace: true,
     allTokens: true,
     baseStart: 0,
+    preserveTags: [],
     inlineElements: [
         'a', 'abbr', 'acronym', 'applet', 'b', 'basefont', 'bdo',
         'big', 'br', 'button', 'cite', 'code', 'del', 'dfn', 'em', 'font', 'i',

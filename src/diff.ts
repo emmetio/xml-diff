@@ -25,7 +25,7 @@ export default function diff(from: ParsedModel, to: ParsedModel, options: Option
                 name: d[1],
                 type: ElementTypeAddon.Delete,
                 location: offset,
-                value: `<del>${d[1]}</del>`
+                value: `<del>${reconstructDel(from, offset, d[1], options.preserveTags)}</del>`
             });
         } else if (d[0] === DIFF_INSERT) {
             // Inserted fragment: should insert open and close tags at proper
@@ -188,4 +188,79 @@ function isTagToken(token: Token): boolean {
  */
 function isInlineElement(token: Token, options: Options): boolean {
     return token && options.inlineElements.includes(token.name);
+}
+
+/**
+ * Reconstructs deleted fragment of original documents with tag structure
+ * of host document
+ */
+function reconstructDel(model: ParsedModel, pos: number, value: string, tags: string[]): string {
+    if (tags.length === 0) {
+        return value;
+    }
+
+    const stack: Token[] = [];
+    const endPos = pos + value.length;
+    let result = '';
+
+    let i = 0;
+
+    // Collect element stack at starting position
+    while (i < model.tokens.length) {
+        const token = model.tokens[i];
+        if (token.location > pos) {
+            break;
+        }
+
+        if (token.type === ElementType.Open) {
+            stack.push(token);
+        } else if (token.type === ElementType.Close) {
+            stack.pop();
+        }
+
+        i++;
+    }
+
+    // Check which elements should be kept in deleted fragment
+    for (const token of stack) {
+        if (tags.includes(token.name)) {
+            result += token.value;
+        }
+    }
+
+    // Walk up to the end of text fragment and check inner structure
+    let offset = 0;
+    while (i < model.tokens.length) {
+        const token = model.tokens[i++];
+        if (token.location > endPos) {
+            break;
+        }
+
+        result += value.slice(offset, token.location - pos);
+        offset = token.location - pos;
+
+        if (token.type === ElementType.SelfClose && tags.includes(token.name)) {
+            result += token.value;
+        } else if (token.type === ElementType.Open) {
+            stack.push(token);
+            if (tags.includes(token.name)) {
+                result += token.value;
+            }
+        } else if (token.type === ElementType.Close) {
+            stack.pop();
+            if (tags.includes(token.name)) {
+                result += token.value;
+            }
+        }
+    }
+
+    // Close the remaining elements
+    while (stack.length) {
+        const token = stack.pop()!;
+        if (tags.includes(token.name)) {
+            result += token.value;
+        }
+    }
+
+    return result + value.slice(offset);
 }

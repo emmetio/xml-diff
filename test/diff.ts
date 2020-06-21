@@ -111,4 +111,24 @@ describe('Diff documents', () => {
             'The President of the United States shall nominate and, by and with the advice and consent of the Senate, appoint a suitable person<del>, who must be a practical printer and versed in the art of bookbinding,</del> to take charge of and manage the Government P<del>rint</del><ins>ublish</ins>ing Office. <del>His</del><ins>The</ins> title shall be <del>Public Printer</del><ins>Director of the Government Publishing Office</ins>.'
         );
     });
+
+    it('diff with preserved elements', () => {
+        equal(
+            diff(
+                '111 <span>222 <em>333</em></span> 555',
+                '111 555',
+                { preserveTags: ['em'] }
+            ),
+            '111 <del>222 <em>333</em> </del>555'
+        );
+
+        equal(
+            diff(
+                '111 <span>222 3<em>3</em>3</span> 555',
+                '111 222 555',
+                { preserveTags: ['span', 'em'] }
+            ),
+            '111 222 <del><span>3<em>3</em>3</span> </del>555'
+        );
+    });
 });
