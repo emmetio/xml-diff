@@ -42,8 +42,35 @@ export default function diff(from: ParsedModel, to: ParsedModel, options: Option
             // Move all tokens of destination document to output result
             while (toTokens.length) {
                 const first = toTokens[0]!;
-                if (first.location > offset || (first.location === offset && first.type === ElementType.Open)) {
+                // if (first.location > offset || (first.location === offset && first.type === ElementType.Open)) {
+                //     break;
+                // }
+                if (first.location > offset) {
                     break;
+                }
+
+                if (first.location === offset && first.type === ElementType.Open) {
+                    // Handle edge case. In the following examples:
+                    // – aa <div>bb cc</div>
+                    // – aa bb <div>cc</div>
+                    // ...removing `dd ` results DELETE token with the same _text_
+                    // location, yet in first case it should be outside `<div>` and
+                    // in second case – inside `<div>`.
+                    // In case if token touches the edge of open tag, we should detect
+                    // if this token is inside or outside the same tag in `from`
+                    // document
+                    const { stack } = getElementStack(from, fromOffset);
+                    let found = false;
+                    while (stack.length) {
+                        if (stack.pop()!.name === first.name) {
+                            found = true;
+                            break;
+                        }
+                    }
+
+                    if (!found) {
+                        break;
+                    }
                 }
 
                 tokens.push(toTokens.shift()!);
@@ -202,27 +229,10 @@ function reconstructDel(model: ParsedModel, pos: number, value: string, tags: st
         return value;
     }
 
-    const stack: Token[] = [];
+    // tslint:disable-next-line: prefer-const
+    let { stack, i } = getElementStack(model, pos);
     const endPos = pos + value.length;
     let result = '';
-
-    let i = 0;
-
-    // Collect element stack at starting position
-    while (i < model.tokens.length) {
-        const token = model.tokens[i];
-        if (token.location > pos) {
-            break;
-        }
-
-        if (token.type === ElementType.Open) {
-            stack.push(token);
-        } else if (token.type === ElementType.Close) {
-            stack.pop();
-        }
-
-        i++;
-    }
 
     // Check which elements should be kept in deleted fragment
     for (const token of stack) {
@@ -266,4 +276,29 @@ function reconstructDel(model: ParsedModel, pos: number, value: string, tags: st
     }
 
     return result + value.slice(offset);
+}
+
+/**
+ * Collects element stack for given text location
+ */
+function getElementStack(model: ParsedModel, pos: number): { stack: Token[], i: number } {
+    const stack: Token[] = [];
+    let i = 0;
+
+    while (i < model.tokens.length) {
+        const token = model.tokens[i];
+        if (token.location > pos) {
+            break;
+        }
+
+        if (token.type === ElementType.Open) {
+            stack.push(token);
+        } else if (token.type === ElementType.Close) {
+            stack.pop();
+        }
+
+        i++;
+    }
+
+    return { stack, i };
 }

@@ -36,6 +36,24 @@ describe('Diff documents', () => {
         );
     });
 
+    it('diff delete at the beginning of tag', () => {
+        equal(
+            diff(
+                '<a>111 </a><b>222 333</b><c> 444 555</c>',
+                '<a>111 </a><b>333</b><c> 444 555</c>',
+            ),
+            '<a>111 </a><b><del>222 </del>333</b><c> 444 555</c>'
+        );
+
+        equal(
+            diff(
+                '<a>111 </a>222 <b>333</b><c> 444 555</c>',
+                '<a>111 </a><b>333</b><c> 444 555</c>',
+            ),
+            '<a>111 </a><del>222 </del><b>333</b><c> 444 555</c>'
+        );
+    });
+
     it('diff insert', () => {
         equal(
             diff(
