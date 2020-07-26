@@ -70,6 +70,19 @@ export interface Options extends ScannerOptions {
      * removed fragments into destination document
      */
     preserveTags: string[];
+
+    /**
+     * Update diff patches so they include whole words instead of distinct parts
+     * of words. For example, running diff on `Experimental` and `Established`
+     * would produce the following patches by default:
+     * `[[0, 'E'], [-1, 'xperimental'], [1, 'stablished'],]`
+     * E.g. only updated part is considered, separating a single word into multiple
+     * chunks.
+     * With this option enable, the diff above will become
+     * `[[-1, 'Experimental'], [1, 'Established'],]`
+     * E.g. it will be updated to include full word chunks
+     */
+    wordPatches?: boolean;
 }
 
 const defaultOptions: Partial<Options> = {

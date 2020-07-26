@@ -115,6 +115,15 @@ describe('Diff documents', () => {
 
         equal(
             diff(
+                'CHAPTER 3—GOVERNMENT PRINTING OFFICE',
+                'CHAPTER 3—GOVERNMENT PUBLISHING OFFICE',
+                { wordPatches: true }
+            ),
+            'CHAPTER 3—GOVERNMENT <del>PRINTING</del><ins>PUBLISHING</ins> OFFICE'
+        );
+
+        equal(
+            diff(
                 '§ 301. Public Printer: appointment',
                 '§ 301. <em>Director of the Government</em> Publishing Office: appointment'
             ),
@@ -127,6 +136,15 @@ describe('Diff documents', () => {
                 'The President of the United States shall nominate and, by and with the advice and consent of the Senate, appoint a suitable person to take charge of and manage the Government Publishing Office. The title shall be Director of the Government Publishing Office.'
             ),
             'The President of the United States shall nominate and, by and with the advice and consent of the Senate, appoint a suitable person<del>, who must be a practical printer and versed in the art of bookbinding,</del> to take charge of and manage the Government P<del>rint</del><ins>ublish</ins>ing Office. <del>His</del><ins>The</ins> title shall be <del>Public Printer</del><ins>Director of the Government Publishing Office</ins>.'
+        );
+
+        equal(
+            diff(
+                'The President of the United States shall nominate and, by and with the advice and consent of the Senate, appoint a suitable person, who must be a practical printer and versed in the art of bookbinding, to take charge of and manage the Government Printing Office. His title shall be Public Printer.',
+                'The President of the United States shall nominate and, by and with the advice and consent of the Senate, appoint a suitable person to take charge of and manage the Government Publishing Office. The title shall be Director of the Government Publishing Office.',
+                { wordPatches: true }
+            ),
+            'The President of the United States shall nominate and, by and with the advice and consent of the Senate, appoint a suitable person<del>, who must be a practical printer and versed in the art of bookbinding,</del> to take charge of and manage the Government <del>Printing</del><ins>Publishing</ins> Office. <del>His</del><ins>The</ins> title shall be <del>Public Printer</del><ins>Director of the Government Publishing Office</ins>.'
         );
     });
 

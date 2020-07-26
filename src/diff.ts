@@ -2,6 +2,7 @@ import { diff_match_patch, DIFF_DELETE, DIFF_INSERT, DIFF_EQUAL } from 'diff-mat
 import { ElementType } from '@emmetio/html-matcher';
 import { ParsedModel, Token, ElementTypeAddon, TokenType } from './types';
 import createOptions, { Options } from './options';
+import wordBounds from './word-bounds';
 
 /**
  * Calculates diff between given parsed document and produces new model with diff
@@ -12,8 +13,12 @@ export default function diff(from: ParsedModel, to: ParsedModel, options: Option
     if (options.dmp) {
         Object.assign(dmp, options.dmp);
     }
-    const diffs = dmp.diff_main(from.content, to.content);
+    let diffs = dmp.diff_main(from.content, to.content);
     dmp.diff_cleanupSemantic(diffs);
+    if (options.wordPatches) {
+        diffs = wordBounds(diffs);
+    }
+
     const toTokens = to.tokens.slice();
     let tokens: Token[] = [];
     let offset = 0;
