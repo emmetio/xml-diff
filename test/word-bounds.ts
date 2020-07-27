@@ -94,4 +94,26 @@ describe('Word bounds', () => {
         equal(diffFrom(wordPatches), from);
         equal(diffTo(wordPatches), to);
     });
+
+    it('numbers', () => {
+        const from = 'Price is 1,249,292.0';
+        const to = 'Price is 1,259,298.0';
+        const patches = diff(from, to);
+        const wordPatches = wordBounds(patches);
+
+        deepEqual(patches, [
+            [0, 'Price is 1,2'],
+            [-1, '4'],
+            [1, '5'],
+            [0, '9,29'],
+            [-1, '2'],
+            [1, '8'],
+            [0, '.0']
+        ]);
+        deepEqual(wordPatches, [
+            [0, 'Price is '],
+            [-1, '1,249,292.0'],
+            [1, '1,259,298.0']
+        ]);
+    });
 });
