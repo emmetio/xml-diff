@@ -23,15 +23,7 @@ export default function updateWordBounds(diffs: Diff[]): Diff[] {
 
             if (start) {
                 // Move start word bound, if required
-                const nextStart = updateStartBound(start, del, ins);
-                if (nextStart !== start) {
-                    result.pop();
-                    if (nextStart[1] !== '') {
-                        // Edge case: bound update resulted in empty prefix,
-                        // do not add it
-                        result.push(nextStart);
-                    }
-                }
+                moveStartBound(start, result, del, ins);
             }
 
             // Advance next until we find non-updated chunk with valid word bound
@@ -59,6 +51,26 @@ export default function updateWordBounds(diffs: Diff[]): Diff[] {
 
             result.push(del, ins);
             start = null;
+        } else if (cur[0] === DIFF_DELETE && !startsWithDelimiter(cur[1]) && start) {
+            const nextStart = moveStartBound(start, result, cur);
+            if (start !== nextStart) {
+                result.push(cur);
+                result.push([DIFF_INSERT, start[1].slice(nextStart[1].length)]);
+            } else {
+                result.push(cur);
+            }
+            start = null;
+            i++;
+        } else if (cur[0] === DIFF_INSERT && !startsWithDelimiter(cur[1]) && start) {
+            const nextStart = moveStartBound(start, result, cur);
+            if (start !== nextStart) {
+                result.push([DIFF_DELETE, start[1].slice(nextStart[1].length)]);
+                result.push(cur);
+            } else {
+                result.push(cur);
+            }
+            start = null;
+            i++;
         } else {
             start = cur[0] === DIFF_EQUAL ? cur : null;
             result.push(cur);
@@ -67,6 +79,21 @@ export default function updateWordBounds(diffs: Diff[]): Diff[] {
     }
 
     return result;
+}
+
+function moveStartBound(start: Diff, result: Diff[], ...tokens: Diff[]): Diff {
+    const nextStart = updateStartBound(start, ...tokens);
+    if (nextStart !== start) {
+        result.pop();
+        if (nextStart[1] !== '') {
+            // Edge case: bound update resulted in empty prefix,
+            // do not add it
+            result.push(nextStart);
+        }
+        return nextStart;
+    }
+
+    return start;
 }
 
 /**
@@ -106,7 +133,7 @@ function findRightWordBound(eq: Diff, del: Diff, ins: Diff): number {
 /**
  * Updates given diffs so they point at the beginning of the word bound
  */
-function updateStartBound(start: Diff, del: Diff, ins: Diff): Diff {
+function updateStartBound(start: Diff, ...tokens: Diff[]): Diff {
     const end = start[1].length - 1;
     let i = end;
 
@@ -125,12 +152,18 @@ function updateStartBound(start: Diff, del: Diff, ins: Diff): Diff {
 
     if (i !== end) {
         const offset = end - i;
-        del[1] = start[1].slice(-offset) + del[1];
-        ins[1] = start[1].slice(-offset) + ins[1];
+        tokens.forEach(t => t[1] = start[1].slice(-offset) + t[1]);
         return [start[0], start[1].slice(0, -offset)];
     }
 
     return start;
+}
+
+/**
+ * Check if given text starts with word delimiter
+ */
+function startsWithDelimiter(text: string): boolean {
+    return isWordDelimiter(text.charCodeAt(0));
 }
 
 function lastCharCode(text: string): number {

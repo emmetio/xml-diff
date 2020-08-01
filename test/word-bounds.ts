@@ -119,9 +119,16 @@ describe('Word bounds', () => {
     });
 
     it('preserve tag bounds', () => {
-        const from = '<header>Objective</header><text>A fundamental objective of NASA aeronautics research</text>';
-        const to = '<header>Objective</header><text>One of the fundamental objectives of NASA aeronautics research</text>';
-        const result = diffDocuments(from, to, { wordPatches: true });
-        equal(result, '<header>Objective</header><text><del>A</del><ins>One of the</ins> fundamental objective<ins>s</ins> of NASA aeronautics research</text>');
+        let from = '<header>Objective</header><text>A fundamental objective of NASA aeronautics research</text>';
+        let to = '<header>Objective</header><text>One of the fundamental objectives of NASA aeronautics research</text>';
+        equal(
+            diffDocuments(from, to, { wordPatches: true }),
+            '<header>Objective</header><text><del>A</del><ins>One of the</ins> fundamental <del>objective</del><ins>objectives</ins> of NASA aeronautics research</text>');
+
+        from = '<header>Objective</header><text>A fundamental objectives of NASA aeronautics research</text>';
+        to = '<header>Objective</header><text>One of the fundamental objective of NASA aeronautics research</text>';
+        equal(
+            diffDocuments(from, to, { wordPatches: true }),
+            '<header>Objective</header><text><del>A</del><ins>One of the</ins> fundamental <del>objectives</del><ins>objective</ins> of NASA aeronautics research</text>');
     });
 });
