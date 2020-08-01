@@ -1,5 +1,6 @@
 import { strictEqual as equal, deepStrictEqual as deepEqual } from 'assert';
 import { diff_match_patch, Diff, DIFF_INSERT, DIFF_DELETE, DIFF_EQUAL } from 'diff-match-patch';
+import diffDocuments from '../src/index';
 import wordBounds from '../src/word-bounds';
 
 function diff(from: string, to: string) {
@@ -115,5 +116,12 @@ describe('Word bounds', () => {
             [-1, '1,249,292.0'],
             [1, '1,259,298.0']
         ]);
+    });
+
+    it('preserve tag bounds', () => {
+        const from = '<header>Objective</header><text>A fundamental objective of NASA aeronautics research</text>';
+        const to = '<header>Objective</header><text>One of the fundamental objectives of NASA aeronautics research</text>';
+        const result = diffDocuments(from, to, { wordPatches: true });
+        equal(result, '<header>Objective</header><text><del>A</del><ins>One of the</ins> fundamental objective<ins>s</ins> of NASA aeronautics research</text>');
     });
 });

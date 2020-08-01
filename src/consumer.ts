@@ -1,5 +1,5 @@
 import { ParsedModel, Token, TokenType, ElementTypeAddon } from './types';
-import { scan } from '@emmetio/html-matcher';
+import { scan, ElementType } from '@emmetio/html-matcher';
 import createOptions, { Options } from './options';
 
 export interface ConsumerState {
@@ -76,6 +76,24 @@ export function createConsumer(text: string, options: Options = createOptions())
             state.tokens.push(token);
             state.prev = end;
             state.offset += token.value.length;
+
+            if (shouldAddSpaceDelimiter(name, type, state)) {
+                // Closing block-level element. In case if `wordPatches` option enabled,
+                // we should add whitespace to prevent word collapsing.
+                // Add empty whitespace token into document to suppress whitespace
+                // added to document content
+                state.tokens.push({
+                    name: '#whitespace',
+                    type: ElementTypeAddon.Space,
+                    value: '',
+                    location: token.location,
+                    offset: 1,
+                    order: token.location
+                });
+                state.content += ' ';
+                state.hasContent = false;
+                state.offset--;
+            }
         },
         finalize(baseEnd = text.length) {
             if (state.options.normalizeSpace) {
@@ -161,4 +179,17 @@ function fixTrailingSpace(state: ConsumerState) {
         state.content = state.content.slice(0, -1);
         state.hasContent = state.content.length > 0;
     }
+}
+
+/**
+ * Check if extra space delimiter should be added for the given XML token.
+ * Used to determine if a space character should be added after closing tag in order
+ * to prevent word collapsing in diff
+ */
+function shouldAddSpaceDelimiter(name: string, type: TokenType, state: ConsumerState): boolean {
+    return Boolean(state.options.wordPatches
+        && (type === ElementType.Close || type === ElementType.SelfClose)
+        && !state.options.inlineElements.includes(name)
+        && state.content
+        && state.content.slice(-1) !== ' ');
 }

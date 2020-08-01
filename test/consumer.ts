@@ -1,5 +1,5 @@
 import { strictEqual as equal, deepStrictEqual as deepEqual } from 'assert';
-import { parse, stringify, ParsedModel } from '../src';
+import { parse, stringify, ParsedModel, createOptions } from '../src';
 
 function tokens(model: ParsedModel): string[] {
     return model.tokens.map(t => t.value);
@@ -35,6 +35,26 @@ describe('XML consumer', () => {
         m = parse(xml);
         equal(m.content, 'foo bar');
         deepEqual(tokens(m), ['<a>', '  ', '<b>', '  ', '</b>', ' ', '  ', '</a>']);
+        equal(stringify(m), xml);
+    });
+
+    it('add whitespace between sections', () => {
+        let xml = '<div>aaa</div><div>bbb</div>';
+        let m = parse(xml, createOptions({ wordPatches: true }));
+
+        equal(m.content, 'aaa bbb');
+        equal(stringify(m), xml);
+
+        xml = '<div>aaa</div> <div>bbb</div>';
+        m = parse(xml, createOptions({ wordPatches: true }));
+
+        equal(m.content, 'aaa bbb');
+        equal(stringify(m), xml);
+
+        xml = '<div>aaa </div> <div> bbb</div>';
+        m = parse(xml, createOptions({ wordPatches: true }));
+
+        equal(m.content, 'aaa bbb');
         equal(stringify(m), xml);
     });
 });
