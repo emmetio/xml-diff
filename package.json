@@ -1,6 +1,6 @@
 {
   "name": "@emmetio/xml-diff",
-  "version": "1.2.3",
+  "version": "1.2.4",
   "description": "Performs diff between two XML documents",
   "main": "./dist/xml-diff.cjs.js",
   "module": "./dist/xml-diff.es.js",
