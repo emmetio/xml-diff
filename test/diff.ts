@@ -1,5 +1,11 @@
+import fs from 'fs';
+import path from 'path';
 import { strictEqual as equal } from 'assert';
 import diff from '../src';
+
+function read(filePath: string) {
+    return fs.readFileSync(path.resolve(__dirname, filePath), 'utf8');
+}
 
 describe('Diff documents', () => {
     it('diff delete', () => {
@@ -174,6 +180,16 @@ describe('Diff documents', () => {
                 { preserveTags: ['span', 'em'] }
             ),
             '<ins>888 </ins>111 222 <del><span>3<em>3</em>3</span> </del>555'
+        );
+    });
+
+    it('suppress whitespace', () => {
+        const from = read('samples/suppress-space-from.xml');
+        const to = read('samples/suppress-space-to.xml');
+
+        equal(
+            diff(from, to, { wordPatches: true }),
+            read('samples/suppress-space-result.xml')
         );
     });
 });

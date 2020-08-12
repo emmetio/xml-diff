@@ -106,6 +106,11 @@ export default function diff(from: ParsedModel, to: ParsedModel, options: Option
 function handleInsert(value: string, pos: number, tokens: Token[], output: Token[]) {
     const end = pos + value.length;
     let tag: Token;
+    const lastToken = output[output.length - 1];
+    if (lastToken && lastToken.type === ElementTypeAddon.Space && lastToken.offset && lastToken.value && value[0] === ' ') {
+        pos += 1;
+        value = value.slice(1);
+    }
 
     insOpen(output, pos);
     while (tokens.length && tokens[0].location < end) {

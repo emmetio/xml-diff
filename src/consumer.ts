@@ -144,7 +144,7 @@ function normalizeWhitespace(from: number, to: number, state: ConsumerState) {
             }
 
             prev = m.index + m[0].length;
-            state.tokens.push(token);
+            appendWhiteSpace(state, token);
             state.offset += token.value.length;
             state.hasContent = prev < fragment.length;
         } else {
@@ -192,4 +192,22 @@ function shouldAddSpaceDelimiter(name: string, type: TokenType, state: ConsumerS
         && !state.options.inlineElements.includes(name)
         && state.content
         && state.content.slice(-1) !== ' ');
+}
+
+/**
+ * Adds given token to state
+ */
+function appendWhiteSpace(state: ConsumerState, token: Token) {
+    const prev = last(state.tokens);
+    if (prev && prev.type === ElementTypeAddon.Space && !prev.value && prev.offset && prev.location + prev.offset === token.location) {
+        // Merge whitespace tokens: previous one is a suppressing tag delimiter,
+        // next one looks like formatting whitespace
+        prev.value = token.value;
+    } else {
+        state.tokens.push(token);
+    }
+}
+
+function last<T>(arr: T[]): T | undefined {
+    return arr.length ? arr[arr.length - 1] : void 0;
 }
