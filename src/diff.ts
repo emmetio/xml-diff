@@ -28,18 +28,20 @@ export default function diff(from: ParsedModel, to: ParsedModel, options: Option
         if (d[0] === DIFF_DELETE && d[1]) {
             // Removed fragment: just add deleted content to result
             let value = d[1];
+            let location = offset;
             if (suppressWhitespace(value, tokens)) {
-                offset += 1;
+                location += 1;
+                fromOffset += 1;
                 value = value.slice(1);
             }
 
             tokens.push({
                 name: value,
                 type: ElementTypeAddon.Delete,
-                location: offset,
+                location,
                 value: `<del>${reconstructDel(from, fromOffset, value, options.preserveTags)}</del>`
             });
-            fromOffset += d[1].length;
+            fromOffset += value.length;
         } else if (d[0] === DIFF_INSERT) {
             // Inserted fragment: should insert open and close tags at proper
             // positions and maintain valid XML nesting
