@@ -27,11 +27,17 @@ export default function diff(from: ParsedModel, to: ParsedModel, options: Option
     diffs.forEach(d => {
         if (d[0] === DIFF_DELETE && d[1]) {
             // Removed fragment: just add deleted content to result
+            let value = d[1];
+            if (suppressWhitespace(value, tokens)) {
+                offset += 1;
+                value = value.slice(1);
+            }
+
             tokens.push({
-                name: d[1],
+                name: value,
                 type: ElementTypeAddon.Delete,
                 location: offset,
-                value: `<del>${reconstructDel(from, fromOffset, d[1], options.preserveTags)}</del>`
+                value: `<del>${reconstructDel(from, fromOffset, value, options.preserveTags)}</del>`
             });
             fromOffset += d[1].length;
         } else if (d[0] === DIFF_INSERT) {
@@ -106,8 +112,7 @@ export default function diff(from: ParsedModel, to: ParsedModel, options: Option
 function handleInsert(value: string, pos: number, tokens: Token[], output: Token[]) {
     const end = pos + value.length;
     let tag: Token;
-    const lastToken = output[output.length - 1];
-    if (lastToken && lastToken.type === ElementTypeAddon.Space && lastToken.offset && value[0] === ' ') {
+    if (suppressWhitespace(value, output)) {
         pos += 1;
         value = value.slice(1);
     }
@@ -311,4 +316,18 @@ function getElementStack(model: ParsedModel, pos: number): { stack: Token[], i: 
     }
 
     return { stack, i };
+}
+
+/**
+ * Handle edge case when patch intersects with suppressed formatting whitespace,
+ * used as word delimiter for adjacent blocks.
+ * For example, `<div>a</div><div>b</div>` is represented as `a b` in plain text,
+ * space between `a` and `b` is a suppressed whitespace and must be removed from
+ * patch
+ */
+function suppressWhitespace(value: string, output: Token[]): boolean {
+    const lastToken = output[output.length - 1];
+    return lastToken
+        ? lastToken.type === ElementTypeAddon.Space && !!lastToken.offset && value[0] === ' '
+        : false;
 }
