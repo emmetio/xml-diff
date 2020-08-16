@@ -29,7 +29,7 @@ export default function diff(from: ParsedModel, to: ParsedModel, options: Option
             // Removed fragment: just add deleted content to result
             let value = d[1];
             let location = offset;
-            if (suppressWhitespace(value, tokens)) {
+            if (suppressWhitespace(value, offset, tokens)) {
                 location += 1;
                 fromOffset += 1;
                 value = value.slice(1);
@@ -114,7 +114,7 @@ export default function diff(from: ParsedModel, to: ParsedModel, options: Option
 function handleInsert(value: string, pos: number, tokens: Token[], output: Token[]) {
     const end = pos + value.length;
     let tag: Token;
-    if (suppressWhitespace(value, output)) {
+    if (suppressWhitespace(value, pos, output)) {
         pos += 1;
         value = value.slice(1);
     }
@@ -284,15 +284,17 @@ function reconstructDel(model: ParsedModel, pos: number, value: string, tags: st
         }
     }
 
+    result += value.slice(offset);
+
     // Close the remaining elements
     while (stack.length) {
         const token = stack.pop()!;
         if (tags.includes(token.name)) {
-            result += token.value;
+            result += `</${token.name}>`;
         }
     }
 
-    return result + value.slice(offset);
+    return result;
 }
 
 /**
@@ -327,9 +329,12 @@ function getElementStack(model: ParsedModel, pos: number): { stack: Token[], i: 
  * space between `a` and `b` is a suppressed whitespace and must be removed from
  * patch
  */
-function suppressWhitespace(value: string, output: Token[]): boolean {
+function suppressWhitespace(value: string, pos: number, output: Token[]): boolean {
     const lastToken = output[output.length - 1];
     return lastToken
-        ? lastToken.type === ElementTypeAddon.Space && !!lastToken.offset && value[0] === ' '
+        ? lastToken.type === ElementTypeAddon.Space
+            && !!lastToken.offset
+            && lastToken.location === pos
+            && value[0] === ' '
         : false;
 }

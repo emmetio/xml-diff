@@ -36,6 +36,12 @@ describe('XML consumer', () => {
         equal(m.content, 'foo bar');
         deepEqual(tokens(m), ['<a>', '  ', '<b>', '  ', '</b>', ' ', '  ', '</a>']);
         equal(stringify(m), xml);
+
+        xml = '<div>foo</div><div>bar </div>';
+        m = parse(xml, createOptions({ wordPatches: true }));
+        equal(m.content, 'foo bar');
+        deepEqual(tokens(m), ['<div>', '</div>', '', '<div>', ' ', '</div>']);
+        equal(stringify(m), xml);
     });
 
     it('add whitespace between sections', () => {

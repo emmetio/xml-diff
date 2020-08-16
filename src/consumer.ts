@@ -29,6 +29,8 @@ export interface Consumer {
 }
 
 const reSpace = /[\s\r\n]+/g;
+/** Normalized space character, used in text */
+const textSpace = ' ';
 
 /**
  * Parses given XML source into internal model for diff
@@ -103,6 +105,15 @@ export function createConsumer(text: string, options: Options = createOptions())
                 state.content += text.slice(state.prev, baseEnd);
             }
 
+            // Remove redundant whitespace tokens
+            state.tokens = state.tokens.filter(token => {
+                if (token.type === ElementTypeAddon.Space && token.value === textSpace && token.offset === 1) {
+                    return false;
+                }
+
+                return true;
+            });
+
             return {
                 tokens: state.tokens,
                 content: state.content
@@ -124,33 +135,27 @@ function normalizeWhitespace(from: number, to: number, state: ConsumerState) {
 
     while (m = reSpace.exec(fragment)) {
         hasSpace = true;
-        if (m[0] !== ' ' || (m.index === 0 && !state.hasContent)) {
-            // Found formatted whitespace, collapse it to a single space or remove
-            // if it’s preceded by another whitespace
-            state.content += fragment.slice(prev, m.index);
-            const token: Token = {
-                name: '#whitespace',
-                type: ElementTypeAddon.Space,
-                value: m[0],
-                location: from + m.index - state.offset - (state.options.baseStart || 0),
-                order: from + m.index
-            };
 
-            if (state.hasContent) {
-                // Not a trailing (significant) whitespace, replace it with single space
-                state.content += ' ';
-                token.offset = 1;
-                state.offset--;
-            }
+        state.content += fragment.slice(prev, m.index);
+        const token: Token = {
+            name: '#whitespace',
+            type: ElementTypeAddon.Space,
+            value: m[0],
+            location: from + m.index - state.offset - (state.options.baseStart || 0),
+            order: from + m.index
+        };
 
-            prev = m.index + m[0].length;
-            appendWhiteSpace(state, token);
-            state.offset += token.value.length;
-            state.hasContent = prev < fragment.length;
-        } else {
-            // Entered trailing space?
-            state.hasContent = m.index + m[0].length < fragment.length;
+        if (state.hasContent || m.index !== 0) {
+            // Significant (not trailing) whitespace, replace it with single space
+            state.content += textSpace;
+            token.offset = 1;
+            state.offset--;
         }
+
+        prev = m.index + m[0].length;
+        appendWhiteSpace(state, token);
+        state.offset += token.value.length;
+        state.hasContent = prev < fragment.length;
     }
 
     if (fragment && !hasSpace) {
@@ -164,11 +169,16 @@ function normalizeWhitespace(from: number, to: number, state: ConsumerState) {
  * Fixes trailing space in accumulated content
  */
 function fixTrailingSpace(state: ConsumerState) {
-    const trailing = state.content[state.content.length - 1] === ' ';
+    const lastCharIx = state.content.length - 1;
+    const lastChar = state.content[lastCharIx];
+    const trailing = lastChar === ' ';
     if (trailing) {
         // Offset trailing tokens with new space
         for (let i = state.tokens.length - 1; i >= 0; i--) {
             const token = state.tokens[i];
+            if (token.location < lastCharIx) {
+                break;
+            }
             if (token.type === ElementTypeAddon.Space) {
                 token.offset = 0;
                 break;
@@ -176,6 +186,7 @@ function fixTrailingSpace(state: ConsumerState) {
                 token.location--;
             }
         }
+
         state.content = state.content.slice(0, -1);
         state.hasContent = state.content.length > 0;
     }
