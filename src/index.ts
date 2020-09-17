@@ -15,7 +15,7 @@ export default function diffDocuments(from: string, to: string, options?: Partia
     const fromDoc = parse(from, opt);
     const toDoc = parse(to, opt);
     const diffDoc = diff(fromDoc, toDoc, opt);
-    return stringify(diffDoc);
+    return opt.invert ? stringify(diffDoc.from) : stringify(diffDoc);
 }
 
 /**

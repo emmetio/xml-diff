@@ -83,6 +83,12 @@ export interface Options extends ScannerOptions {
      * E.g. it will be updated to include full word chunks
      */
     wordPatches?: boolean;
+
+    /**
+     * Inverts patch types: INSERT becomes DELETE and vice versa. Used to re-build
+     * document structure in opposite direction, e.g. to → from
+     */
+    invert?: boolean;
 }
 
 const defaultOptions: Partial<Options> = {
