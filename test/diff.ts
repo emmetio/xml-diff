@@ -197,7 +197,7 @@ describe('Diff documents', () => {
         );
     });
 
-    it.only('invert diff', () => {
+    it.skip('invert diff', () => {
         const from = read('samples/doc-from.xml');
         const to = read('samples/doc-to.xml');
 
