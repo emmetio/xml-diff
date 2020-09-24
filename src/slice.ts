@@ -100,14 +100,18 @@ export class SliceResult {
         this.range = range;
     }
 
-    toString(opName = ''): string {
+    /**
+     * Returns string representation of current fragment.
+     * @param opTag Tag name for wrap markers
+     */
+    toString(opTag?: string): string {
         return this.tokens.map(t => {
             if (t === SliceOp.Open) {
-                return `<${opName}>`;
+                return opTag ? `<${opTag}>` : '';
             }
 
             if (t === SliceOp.Close) {
-                return `</${opName}>`;
+                return opTag ? `</${opTag}>` : '';
             }
 
             return t;
@@ -115,6 +119,12 @@ export class SliceResult {
     }
 }
 
+/**
+ * Returns document fragment for given _text content_ range that can be used as
+ * a _replacement_ for the same range of given document.
+ * Inserts `SliceOp` operation markers in appropriate positions to maintain valid
+ * XML state.
+ */
 export function slice(doc: ParsedModel, from: number, to: number): SliceResult {
     const stack: InnerStackItem[] = [];
     const tokens: SliceToken[] = [SliceOp.Open];
@@ -156,25 +166,25 @@ export function slice(doc: ParsedModel, from: number, to: number): SliceResult {
         tokens.splice(item[1], 1, SliceOp.Close, item[0].value, SliceOp.Open);
     }
 
-    return new SliceResult(tokens, range);
+    return new SliceResult(optimize(tokens), range);
 }
 
 /**
  * Returns optimized token list without redundant tokens
  */
-// function optimize(tokens: SliceToken[]): SliceToken[] {
-//     const result: SliceToken[] = [];
+function optimize(tokens: SliceToken[]): SliceToken[] {
+    const result: SliceToken[] = [];
 
-//     for (let i = 0; i < tokens.length; i++) {
-//         if (tokens[i] === SliceOp.Open && tokens[i + 1] === SliceOp.Close) {
-//             i++;
-//         } else {
-//             result.push(tokens[i]);
-//         }
-//     }
+    for (let i = 0; i < tokens.length; i++) {
+        if (tokens[i] === SliceOp.Open && tokens[i + 1] === SliceOp.Close) {
+            i++;
+        } else {
+            result.push(tokens[i]);
+        }
+    }
 
-//     return result;
-// }
+    return result;
+}
 
 /**
  * Check if given token is allowed in extracted fragment according to
@@ -237,11 +247,11 @@ function findTokenStart(model: ParsedModel, pos: number): number {
  * Returns optimal range of tokens for slicing
  */
 function getSliceRange(model: ParsedModel, from: number, to: number): SliceRange {
-    const start = findTokenStart(model, from);
     const tokens: Token[] = [];
     const stack: string[] = [];
-
+    let start = findTokenStart(model, from);
     let i = start;
+
     while (i < model.tokens.length) {
         const token = model.tokens[i++];
 
@@ -270,6 +280,18 @@ function getSliceRange(model: ParsedModel, from: number, to: number): SliceRange
     }
 
     // Remove trailing tokens
+    while (tokens.length) {
+        const token = tokens[0]!;
+        // Remove unclosed tags from the beginning of range
+        if (token.location === from && token.type === ElementType.Open && stack[0] === token.name) {
+            stack.shift();
+            tokens.shift();
+            start++;
+        } else {
+            break;
+        }
+    }
+
     while (tokens.length) {
         const token = last(tokens)!;
         if (token.location && (token.type === ElementType.SelfClose || token.type === ElementTypeAddon.Space)) {
