@@ -3,6 +3,7 @@ import { ElementType } from '@emmetio/html-matcher';
 import { ParsedModel, Token, ElementTypeAddon, TokenType } from './types';
 import createOptions, { Options } from './options';
 import wordBounds from './word-bounds';
+import { fragment, FragmentOptions, slice, SliceResult } from './slice';
 
 /**
  * Calculates diff between given parsed document and produces new model with diff
@@ -19,42 +20,54 @@ export default function diff(from: ParsedModel, to: ParsedModel, options: Option
         diffs = wordBounds(diffs);
     }
 
-    const toTokens = to.tokens.slice();
+    // const toTokens = to.tokens.slice();
     let tokens: Token[] = [];
     let offset = 0;
     let fromOffset = 0;
+    let tokenPos = 0;
+    const fragmentOpt: FragmentOptions = {
+        tags: options.preserveTags || []
+    };
 
     diffs.forEach(d => {
-        if (d[0] === DIFF_DELETE && d[1]) {
+        let value = d[1];
+        if (d[0] === DIFF_DELETE && value) {
             // Removed fragment: just add deleted content to result
-            let value = d[1];
             let location = offset;
             if (suppressWhitespace(value, offset, tokens)) {
                 location += 1;
                 fromOffset += 1;
                 value = value.slice(1);
             }
-
-            tokens.push({
-                name: value,
-                type: ElementTypeAddon.Delete,
-                location,
-                value: `<del>${reconstructDel(from, fromOffset, value, options.preserveTags)}</del>`
-            });
+            const chunk = fragment(from, fromOffset, fromOffset + value.length, fragmentOpt);
+            tokens.push(delToken(value, location, chunk));
             fromOffset += value.length;
         } else if (d[0] === DIFF_INSERT) {
             // Inserted fragment: should insert open and close tags at proper
             // positions and maintain valid XML nesting
-            tokens = handleInsert(d[1], offset, toTokens, tokens);
-            offset += d[1].length;
+            if (suppressWhitespace(value, offset, tokens)) {
+                offset += 1;
+                value = value.slice(1);
+            }
+
+            const chunk = slice(to, offset, offset + value.length);
+
+            // Move tokens preceding sliced fragment to output
+            while (tokenPos < chunk.range[0]) {
+                tokens.push(to.tokens[tokenPos++]);
+            }
+
+            tokenPos = chunk.range[1] + 1;
+            tokens.push(insToken(value, offset, chunk));
+            offset += value.length;
         } else if (d[0] === DIFF_EQUAL) {
             // Unmodified content
-            offset += d[1].length;
-            fromOffset += d[1].length;
+            offset += value.length;
+            fromOffset += value.length;
 
             // Move all tokens of destination document to output result
-            while (toTokens.length) {
-                const first = toTokens[0]!;
+            while (tokenPos < to.tokens.length) {
+                const first = to.tokens[tokenPos]!;
                 // if (first.location > offset || (first.location === offset && first.type === ElementType.Open)) {
                 //     break;
                 // }
@@ -66,7 +79,7 @@ export default function diff(from: ParsedModel, to: ParsedModel, options: Option
                     // Handle edge case. In the following examples:
                     // – aa <div>bb cc</div>
                     // – aa bb <div>cc</div>
-                    // ...removing `dd ` results DELETE token with the same _text_
+                    // ...removing `bb ` results DELETE token with the same _text_
                     // location, yet in first case it should be outside `<div>` and
                     // in second case – inside `<div>`.
                     // In case if token touches the edge of open tag, we should detect
@@ -86,105 +99,64 @@ export default function diff(from: ParsedModel, to: ParsedModel, options: Option
                     }
                 }
 
-                tokens.push(toTokens.shift()!);
+                tokens.push(first);
+                tokenPos++;
             }
         }
     });
 
     if (options.compact) {
-        tokens = compactIns(tokens, options);
+        // tokens = compactIns(tokens, options);
         tokens = compactDel(to.content, tokens, options);
     }
 
     return {
-        tokens: tokens.concat(toTokens),
+        tokens: tokens.concat(to.tokens.slice(tokenPos)),
         content: to.content
     };
 }
 
 /**
- * Applies INSERT patch operation
- * @param value Added content
- * @param pos Current output location
- * @param tokens Array of tag tokens *right* to given `pos` location.
- * Will be mutated: tokens will move into `output` array.
- * @param output Array of output tokens. Will be mutated with diff and tag tokens.
- * @return Returns `output` array
- */
-function handleInsert(value: string, pos: number, tokens: Token[], output: Token[]) {
-    const end = pos + value.length;
-    let tag: Token;
-    if (suppressWhitespace(value, pos, output)) {
-        pos += 1;
-        value = value.slice(1);
-    }
-
-    insOpen(output, pos);
-    while (tokens.length && tokens[0].location < end) {
-        tag = tokens.shift()!;
-
-        if (isTagToken(tag)) {
-            insClose(output, tag.location);
-            output.push(tag);
-            insOpen(output, tag.location);
-        } else {
-            output.push(tag);
-        }
-    }
-    insClose(output, end);
-
-    return output;
-}
-
-function insOpen(tokens: Token[], location: number) {
-    tokens.push({ name: 'ins', type: ElementTypeAddon.InsertBefore, location, value: '<ins>' });
-}
-
-function insClose(tokens: Token[], location: number) {
-    tokens.push({ name: 'ins', type: ElementTypeAddon.InsertAfter, location, value: '</ins>' });
-}
-
-/**
  * Optimizes given token list by removing meaningless insertion tags
  */
-function compactIns(tokens: Token[], options: Options): Token[] {
-    const result: Token[] = [];
-    tokens = tokens.slice();
+// function compactIns(tokens: Token[], options: Options): Token[] {
+//     const result: Token[] = [];
+//     tokens = tokens.slice();
 
-    while (tokens.length) {
-        const token = tokens.shift()!;
+//     while (tokens.length) {
+//         const token = tokens.shift()!;
 
-        if (isType(token, ElementTypeAddon.InsertBefore)) {
-            if (isType(tokens[0], ElementTypeAddon.InsertAfter) && token.location === tokens[0].location) {
-                // Empty token
-                tokens.shift();
-                continue;
-            }
+//         if (isType(token, ElementTypeAddon.InsertBefore)) {
+//             if (isType(tokens[0], ElementTypeAddon.InsertAfter) && token.location === tokens[0].location) {
+//                 // Empty token
+//                 tokens.shift();
+//                 continue;
+//             }
 
-            if (isType(tokens[0], ElementTypeAddon.Space) && isType(tokens[1], ElementTypeAddon.InsertAfter)) {
-                // Inserted whitespace.
-                // It can be either significant (`ab` -> `a b`) or insignificant,
-                // if this whitespace is empty or is right after non-inline element
-                const prev = result[result.length - 1];
-                if (
-                    token.location === tokens[1].location
-                    || (
-                        // Check that only whitespace was inserted
-                        (tokens[1].location - token.location) === tokens[0].offset
-                        && isTagToken(prev) && !isInlineElement(prev, options)
-                    )
-                ) {
-                    result.push(tokens.shift()!);
-                    tokens.shift();
-                    continue;
-                }
-            }
-        }
-        result.push(token);
-    }
+//             if (isType(tokens[0], ElementTypeAddon.Space) && isType(tokens[1], ElementTypeAddon.InsertAfter)) {
+//                 // Inserted whitespace.
+//                 // It can be either significant (`ab` -> `a b`) or insignificant,
+//                 // if this whitespace is empty or is right after non-inline element
+//                 const prev = result[result.length - 1];
+//                 if (
+//                     token.location === tokens[1].location
+//                     || (
+//                         // Check that only whitespace was inserted
+//                         (tokens[1].location - token.location) === tokens[0].offset
+//                         && isTagToken(prev) && !isInlineElement(prev, options)
+//                     )
+//                 ) {
+//                     result.push(tokens.shift()!);
+//                     tokens.shift();
+//                     continue;
+//                 }
+//             }
+//         }
+//         result.push(token);
+//     }
 
-    return result;
-}
+//     return result;
+// }
 
 /**
  * Optimizes given token list by removing meaningless delete tokens
@@ -222,79 +194,10 @@ export function isType(token: Token | undefined, type: TokenType): boolean {
 }
 
 /**
- * Check if given token contains tag
- */
-function isTagToken(token: Token): boolean {
-    return token.type === ElementType.Open
-        || token.type === ElementType.Close
-        || token.type === ElementType.SelfClose;
-}
-
-/**
  * Check if given token is an inline-level HTML element
  */
 function isInlineElement(token: Token, options: Options): boolean {
     return token && options.inlineElements.includes(token.name);
-}
-
-/**
- * Reconstructs deleted fragment of original documents with tag structure
- * of host document
- */
-function reconstructDel(model: ParsedModel, pos: number, value: string, tags: string[]): string {
-    if (tags.length === 0) {
-        return value;
-    }
-
-    // tslint:disable-next-line: prefer-const
-    let { stack, i } = getElementStack(model, pos);
-    const endPos = pos + value.length;
-    let result = '';
-
-    // Check which elements should be kept in deleted fragment
-    for (const token of stack) {
-        if (tags.includes(token.name)) {
-            result += token.value;
-        }
-    }
-
-    // Walk up to the end of text fragment and check inner structure
-    let offset = 0;
-    while (i < model.tokens.length) {
-        const token = model.tokens[i++];
-        if (token.location > endPos) {
-            break;
-        }
-
-        result += value.slice(offset, token.location - pos);
-        offset = token.location - pos;
-
-        if (token.type === ElementType.SelfClose && tags.includes(token.name)) {
-            result += token.value;
-        } else if (token.type === ElementType.Open) {
-            stack.push(token);
-            if (tags.includes(token.name)) {
-                result += token.value;
-            }
-        } else if (token.type === ElementType.Close) {
-            stack.pop();
-            if (tags.includes(token.name)) {
-                result += token.value;
-            }
-        }
-    }
-
-    result += value.slice(offset);
-
-    // Close the remaining elements
-    while (stack.length) {
-        const token = stack.pop()!;
-        if (tags.includes(token.name)) {
-            result += `</${token.name}>`;
-        }
-    }
-
-    return result;
 }
 
 /**
@@ -337,4 +240,23 @@ function suppressWhitespace(value: string, pos: number, output: Token[]): boolea
             && lastToken.location === pos
             && value[0] === ' '
         : false;
+}
+
+function delToken(name: string, location: number, value: SliceResult): Token {
+    return {
+        name,
+        type: ElementTypeAddon.Delete,
+        location,
+        value: value.toString('del')
+    };
+}
+
+function insToken(name: string, location: number, value: SliceResult): Token {
+    return {
+        name,
+        type: ElementTypeAddon.Insert,
+        location,
+        offset: name.length,
+        value: value.toString('ins')
+    };
 }

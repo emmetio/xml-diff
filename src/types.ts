@@ -7,8 +7,7 @@ export interface ParsedModel {
 
 export const enum ElementTypeAddon {
     Space = 100,
-    InsertBefore = 101,
-    InsertAfter = 102,
+    Insert = 101,
     Delete = 103,
     Custom = 200,
 }
