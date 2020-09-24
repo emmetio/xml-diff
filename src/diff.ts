@@ -1,6 +1,6 @@
 import { diff_match_patch, DIFF_DELETE, DIFF_INSERT, DIFF_EQUAL } from 'diff-match-patch';
 import { ElementType } from '@emmetio/html-matcher';
-import { ParsedModel, Token, ElementTypeAddon, TokenType, DiffResult } from './types';
+import { ParsedModel, Token, ElementTypeAddon, TokenType } from './types';
 import createOptions, { Options } from './options';
 import wordBounds from './word-bounds';
 
@@ -8,7 +8,7 @@ import wordBounds from './word-bounds';
  * Calculates diff between given parsed document and produces new model with diff
  * tokens in it. This model can be restored into a final XML document
  */
-export default function diff(from: ParsedModel, to: ParsedModel, options: Options = createOptions()): DiffResult {
+export default function diff(from: ParsedModel, to: ParsedModel, options: Options = createOptions()): ParsedModel {
     const dmp = new diff_match_patch();
     if (options.dmp) {
         Object.assign(dmp, options.dmp);
@@ -19,27 +19,15 @@ export default function diff(from: ParsedModel, to: ParsedModel, options: Option
         diffs = wordBounds(diffs);
     }
 
-    const toSrcTokens = to.tokens.slice();
-    const fromSrcTokens = from.tokens.slice();
+    const toTokens = to.tokens.slice();
     let tokens: Token[] = [];
-    let fromTokens: Token[] = [];
     let offset = 0;
     let fromOffset = 0;
 
-    const getFromStack = () => getElementStack(from, fromOffset).stack;
-    const getToStack = () => getElementStack(to, offset).stack;
-
-    const delToken = (name: string, location: number) => ({
-        name,
-        type: ElementTypeAddon.Delete,
-        location,
-        value: `<del>${reconstructDel(from, fromOffset, name, options.preserveTags)}</del>`
-    } as Token);
-
     diffs.forEach(d => {
-        let value = d[1];
-        if (d[0] === DIFF_DELETE && value) {
+        if (d[0] === DIFF_DELETE && d[1]) {
             // Removed fragment: just add deleted content to result
+            let value = d[1];
             let location = offset;
             if (suppressWhitespace(value, offset, tokens)) {
                 location += 1;
@@ -47,32 +35,59 @@ export default function diff(from: ParsedModel, to: ParsedModel, options: Option
                 value = value.slice(1);
             }
 
-            // Removed fragment means it exists in `from` document and absent in
-            // `to` document. So for `from` document we should treat removed fragment
-            // as inserted
-            // XXX продолжить тут
-            fromTokens.push(delToken(value, location));
-
-            tokens.push(delToken(value, location));
+            tokens.push({
+                name: value,
+                type: ElementTypeAddon.Delete,
+                location,
+                value: `<del>${reconstructDel(from, fromOffset, value, options.preserveTags)}</del>`
+            });
             fromOffset += value.length;
         } else if (d[0] === DIFF_INSERT) {
             // Inserted fragment: should insert open and close tags at proper
             // positions and maintain valid XML nesting
-
-            // Inserted fragment means it exists in `to` document and is absent
-            // in `from` document. So for `from` document we should treat inserted
-            // fragment as removed
-            fromTokens.push(insTokenFrom(toSrcTokens, offset, value));
-            tokens = handleInsert(value, offset, toSrcTokens, tokens);
-            // fromTokens = handleInsert(value, fromOffset, fromSrcTokens, fromTokens);
-            offset += value.length;
+            tokens = handleInsert(d[1], offset, toTokens, tokens);
+            offset += d[1].length;
         } else if (d[0] === DIFF_EQUAL) {
             // Unmodified content
-            offset += value.length;
-            fromOffset += value.length;
+            offset += d[1].length;
+            fromOffset += d[1].length;
 
-            moveTokens(toSrcTokens, tokens, offset, getFromStack);
-            moveTokens(fromSrcTokens, fromTokens, fromOffset, getToStack);
+            // Move all tokens of destination document to output result
+            while (toTokens.length) {
+                const first = toTokens[0]!;
+                // if (first.location > offset || (first.location === offset && first.type === ElementType.Open)) {
+                //     break;
+                // }
+                if (first.location > offset) {
+                    break;
+                }
+
+                if (first.location === offset && first.type === ElementType.Open) {
+                    // Handle edge case. In the following examples:
+                    // – aa <div>bb cc</div>
+                    // – aa bb <div>cc</div>
+                    // ...removing `dd ` results DELETE token with the same _text_
+                    // location, yet in first case it should be outside `<div>` and
+                    // in second case – inside `<div>`.
+                    // In case if token touches the edge of open tag, we should detect
+                    // if this token is inside or outside the same tag in `from`
+                    // document
+                    const { stack } = getElementStack(from, fromOffset);
+                    let found = false;
+                    while (stack.length) {
+                        if (stack.pop()!.name === first.name) {
+                            found = true;
+                            break;
+                        }
+                    }
+
+                    if (!found) {
+                        break;
+                    }
+                }
+
+                tokens.push(toTokens.shift()!);
+            }
         }
     });
 
@@ -82,12 +97,8 @@ export default function diff(from: ParsedModel, to: ParsedModel, options: Option
     }
 
     return {
-        tokens: tokens.concat(toSrcTokens),
-        content: to.content,
-        from: {
-            tokens: fromTokens.concat(fromSrcTokens),
-            content: from.content
-        }
+        tokens: tokens.concat(toTokens),
+        content: to.content
     };
 }
 
@@ -326,82 +337,4 @@ function suppressWhitespace(value: string, pos: number, output: Token[]): boolea
             && lastToken.location === pos
             && value[0] === ' '
         : false;
-}
-
-/**
- * Moves document tokens from `source` to `dest` token list up until `pos` document
- * location.
- */
-function moveTokens(source: Token[], dest: Token[], pos: number, getStack: () => Token[]) {
-    // Move all tokens of destination document to output result
-    while (source.length) {
-        const first = source[0]!;
-        // if (first.location > offset || (first.location === offset && first.type === ElementType.Open)) {
-        //     break;
-        // }
-        if (first.location > pos) {
-            break;
-        }
-
-        if (first.location === pos && first.type === ElementType.Open) {
-            // Handle edge case. In the following examples:
-            // – aa <div>bb cc</div>
-            // – aa bb <div>cc</div>
-            // ...removing `dd ` results DELETE token with the same _text_
-            // location, yet in first case it should be outside `<div>` and
-            // in second case – inside `<div>`.
-            // In case if token touches the edge of open tag, we should detect
-            // if this token is inside or outside the same tag in `from`
-            // document
-            const stack = getStack();
-            let found = false;
-            while (stack.length) {
-                if (stack.pop()!.name === first.name) {
-                    found = true;
-                    break;
-                }
-            }
-
-            if (!found) {
-                break;
-            }
-        }
-
-        dest.push(source.shift()!);
-    }
-}
-
-/**
- * Generates <ins> token for `from` document
- */
-function insTokenFrom(tokens: Token[], pos: number, value: string): Token {
-    const stack: string[] = [];
-    const end = pos + value.length;
-    let offset = 0;
-    let result = '';
-
-    for (const token of tokens) {
-        if (token.location > end) {
-            break;
-        }
-
-        if (token.type === ElementType.Open) {
-            stack.push(token.name);
-        } else if (token.type === ElementType.Close) {
-            if (stack[stack.length - 1] !== token.name) {
-                continue;
-            }
-            stack.pop();
-        }
-
-        result += value.slice(offset, token.location - pos) + token.value;
-        offset = token.location - pos;
-    }
-
-    return {
-        name: value,
-        type: ElementTypeAddon.FromInsert,
-        location: pos,
-        value: `<ins>${result + value.slice(offset)}</ins>`,
-    };
 }

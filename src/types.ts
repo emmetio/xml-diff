@@ -5,16 +5,11 @@ export interface ParsedModel {
     content: string;
 }
 
-export interface DiffResult extends ParsedModel {
-    from: ParsedModel;
-}
-
 export const enum ElementTypeAddon {
     Space = 100,
     InsertBefore = 101,
     InsertAfter = 102,
     Delete = 103,
-    FromInsert = 104,
     Custom = 200,
 }
 

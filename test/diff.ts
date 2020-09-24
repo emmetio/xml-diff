@@ -7,10 +7,6 @@ function read(filePath: string) {
     return fs.readFileSync(path.resolve(__dirname, filePath), 'utf8');
 }
 
-function write(filePath: string, content: string) {
-    return fs.writeFileSync(path.resolve(__dirname, filePath), content);
-}
-
 describe('Diff documents', () => {
     it('diff delete', () => {
         equal(
@@ -195,13 +191,5 @@ describe('Diff documents', () => {
             diff(from, to, { wordPatches: true }),
             read('samples/suppress-space-result.xml')
         );
-    });
-
-    it.skip('invert diff', () => {
-        const from = read('samples/doc-from.xml');
-        const to = read('samples/doc-to.xml');
-
-        write('fixtures/from-to.xml', diff(from, to, { wordPatches: true }));
-        write('fixtures/to-from.xml', diff(from, to, { wordPatches: true, invert: true }));
     });
 });
