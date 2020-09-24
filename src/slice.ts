@@ -9,81 +9,11 @@ export const enum SliceOp {
 export type SliceToken = string | SliceOp;
 export type SliceRange = [number, number];
 type InnerStackItem = [Token, number];
-// type ListItem = string | SliceOp | Token;
 
-export interface SliceOptions {
-    /** Preserves full parent structure up until fragment start */
-    preserveParents?: boolean;
+export interface FragmentOptions {
     /** List of allowed tags in extracted fragment, including parents (if enabled) */
     tags?: string[];
 }
-
-/**
- * Generic function for returning document fragment to be wrapped with some
- * tag, while maintaining proper tag structure.
- */
-// export function slicetest(doc: ParsedModel, from: number, to: number, options: SliceOptions = {}): SliceResult {
-//     let { stack, i } = getElementStack(doc, from);
-//     let offset = from;
-//     let stackOffset = 0;
-//     const tokens: SliceToken[] = [];
-//     const range: SliceRange = [i, i];
-//     const innerStack: InnerStackItem[] = [];
-
-//     const list: ListItem[] = [SliceOp.Open];
-
-//     const push = (chunk: string | Token) => {
-//         if (chunk) {
-//             list.push(chunk);
-//         }
-//     };
-
-//     if (options.preserveParents) {
-//         for (const token of stack) {
-//             if (isAllowedToken(token, options)) {
-//                 push(token);
-//             }
-//         }
-//     }
-
-//     // Walk up to the end of text fragment and check inner structure
-//     while (i < doc.tokens.length) {
-//         const token = doc.tokens[i++];
-//         if (token.location > to) {
-//             break;
-//         }
-
-//         range[1] = i;
-
-//         push(doc.content.slice(offset, token.location));
-//         offset = token.location;
-
-//         if (token.type === ElementType.Open) {
-//             innerStack.push([token, tokens.length]);
-//         } else if (token.type === ElementType.Close) {
-//             if (!innerStack.pop() && options.preserveParents && isAllowedToken(token, options)) {
-//                 // Tag is opened outside of current stack, we should pull it out
-//                 // from
-//             }
-//         }
-
-//         push(token);
-//     }
-
-//     push(doc.content.slice(offset, to));
-
-//     // Close the remaining elements
-//     if (options.preserveParents) {
-//         // TODO properly implement
-//         // Check which elements should be kept in parent structure
-//         stack.forEach(push);
-//         while (stack.length) {
-//             push(stack.pop()!);
-//         }
-//     }
-
-//     return new SliceResult(tokens, range);
-// }
 
 export class SliceResult {
     /**
@@ -169,6 +99,60 @@ export function slice(doc: ParsedModel, from: number, to: number): SliceResult {
     return new SliceResult(optimize(tokens), range);
 }
 
+export function fragment(doc: ParsedModel, from: number, to: number, options: FragmentOptions = {}) {
+    const { stack, start } = getElementStack(doc, from);
+
+    let offset = from;
+    let i = start;
+    let end = start;
+    let result = '';
+
+    const push = (chunk: string | Token) => {
+        if (chunk) {
+            if (typeof chunk === 'string') {
+                result += chunk;
+            } else if (isAllowedToken(chunk, options)) {
+                result += chunk.value;
+            }
+        }
+    };
+
+    stack.forEach(push);
+
+    // Walk up to the end of text fragment and check inner structure
+    while (i < doc.tokens.length) {
+        const token = doc.tokens[i];
+        if (token.location > to) {
+            break;
+        }
+
+        end = i++;
+
+        push(doc.content.slice(offset, token.location));
+        offset = token.location;
+
+        if (token.type === ElementType.Open) {
+            stack.push(token);
+        } else if (token.type === ElementType.Close) {
+            stack.pop();
+        }
+
+        push(token);
+    }
+
+    push(doc.content.slice(offset, to));
+
+    // Close the remaining elements
+    while (stack.length) {
+        const token = stack.pop()!;
+        if (isAllowedToken(token, options)) {
+            push(`</${token.name}>`);
+        }
+    }
+
+    return new SliceResult([SliceOp.Open, result, SliceOp.Close], [start, end]);
+}
+
 /**
  * Returns optimized token list without redundant tokens
  */
@@ -190,38 +174,38 @@ function optimize(tokens: SliceToken[]): SliceToken[] {
  * Check if given token is allowed in extracted fragment according to
  * options specified
  */
-// function isAllowedToken(token: Token, options: SliceOptions): boolean {
-//     if (token.type === ElementType.Open || token.type === ElementType.Close || token.type === ElementType.SelfClose) {
-//         return options.tags ? options.tags.includes(token.name) : true;
-//     }
+function isAllowedToken(token: Token, options: FragmentOptions): boolean {
+    if (token.type === ElementType.Open || token.type === ElementType.Close || token.type === ElementType.SelfClose) {
+        return options.tags ? options.tags.includes(token.name) : true;
+    }
 
-//     return true;
-// }
+    return true;
+}
 
 /**
  * Collects element stack for given text location
  */
-// function getElementStack(model: ParsedModel, pos: number): { stack: Token[], i: number } {
-//     const stack: Token[] = [];
-//     let i = 0;
+function getElementStack(model: ParsedModel, pos: number): { stack: Token[], start: number } {
+    const stack: Token[] = [];
+    let start = 0;
 
-//     while (i < model.tokens.length) {
-//         const token = model.tokens[i];
-//         if (token.location > pos) {
-//             break;
-//         }
+    while (start < model.tokens.length) {
+        const token = model.tokens[start];
+        if (token.location >= pos) {
+            break;
+        }
 
-//         if (token.type === ElementType.Open) {
-//             stack.push(token);
-//         } else if (token.type === ElementType.Close) {
-//             stack.pop();
-//         }
+        if (token.type === ElementType.Open) {
+            stack.push(token);
+        } else if (token.type === ElementType.Close) {
+            stack.pop();
+        }
 
-//         i++;
-//     }
+        start++;
+    }
 
-//     return { stack, i };
-// }
+    return { stack, start };
+}
 
 function findTokenStart(model: ParsedModel, pos: number): number {
     let i = 0;

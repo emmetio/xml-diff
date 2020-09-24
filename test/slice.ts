@@ -1,7 +1,7 @@
 import { strictEqual as equal, deepStrictEqual as deepEqual } from 'assert';
-import { parse, slice } from '../src';
+import { parse, slice, fragment } from '../src';
 
-describe.only('XML Slice', () => {
+describe('XML Slice', () => {
     it('slice', () => {
         const doc = parse('<div>aaa <a>foo <b>bar</b> baz</a> bbb</div>');
 
@@ -46,5 +46,36 @@ describe.only('XML Slice', () => {
         s = slice(doc, 0, 11);
         equal(s.toString('ins'), '<ins>aaa </ins><a><ins><c>foo <b>bar</b></c></ins>');
         deepEqual(s.range, [1, 5]);
+    });
+
+    it('fragment', () => {
+        const doc = parse('<div>aaa <a><c>foo <b>bar</b> baz</c></a> bbb</div>');
+
+        let s = fragment(doc, 8, 11);
+        equal(s.toString('del'), '<del><div><a><c><b>bar</b></c></a></div></del>');
+        deepEqual(s.range, [3, 4]);
+
+        s = fragment(doc, 2, 11);
+        equal(s.toString('del'), '<del><div>a <a><c>foo <b>bar</b></c></a></div></del>');
+        deepEqual(s.range, [1, 4]);
+
+        s = fragment(doc, 0, 11);
+        equal(s.toString('del'), '<del><div>aaa <a><c>foo <b>bar</b></c></a></div></del>');
+        deepEqual(s.range, [0, 4]);
+
+        s = fragment(doc, 4, 15);
+        equal(s.toString('del'), '<del><div><a><c>foo <b>bar</b> baz</c></a></div></del>');
+        deepEqual(s.range, [1, 6]);
+    });
+
+    it('fragment with tag filter', () => {
+        const doc = parse('<div>aaa <a><c>foo <b>bar</b> baz</c></a> bbb</div>');
+        let s = fragment(doc, 8, 11, { tags: ['a', 'b'] });
+        equal(s.toString('del'), '<del><a><b>bar</b></a></del>');
+        deepEqual(s.range, [3, 4]);
+
+        s = fragment(doc, 8, 11, { tags: [] });
+        equal(s.toString('del'), '<del>bar</del>');
+        deepEqual(s.range, [3, 4]);
     });
 });

@@ -4,7 +4,7 @@ import createOptions, { Options, DMPOptions } from './options';
 import { ParsedModel } from './types';
 
 export { diff, parse, createOptions, createConsumer, Options, DMPOptions, ParsedModel, Consumer };
-export { slice } from './slice';
+export { slice, fragment } from './slice';
 export { Token, TokenType, ElementTypeAddon } from './types';
 
 /**
