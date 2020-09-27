@@ -74,7 +74,7 @@ describe('Diff documents', () => {
                 '111 333',
                 '111 <em>222</em> 333'
             ),
-            '111 <em><ins>222</ins></em><ins> </ins>333'
+            '111 <ins><em>222</em> </ins>333'
         );
 
         equal(
@@ -98,7 +98,7 @@ describe('Diff documents', () => {
                 '111 222',
                 '111 333 <em>444</em> 555 222'
             ),
-            '111 <ins>333 </ins><em><ins>444</ins></em><ins> 555 </ins>222'
+            '111 <ins>333 <em>444</em> 555 </ins>222'
         );
 
         equal(
@@ -133,7 +133,7 @@ describe('Diff documents', () => {
                 '§ 301. Public Printer: appointment',
                 '§ 301. <em>Director of the Government</em> Publishing Office: appointment'
             ),
-            '§ 301. <del>Public Printer</del><em><ins>Director of the Government</ins></em><ins> Publishing Office</ins>: appointment'
+            '§ 301. <del>Public Printer</del><ins><em>Director of the Government</em> Publishing Office</ins>: appointment'
         );
 
         equal(

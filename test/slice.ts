@@ -30,6 +30,24 @@ describe('XML Slice', () => {
         deepEqual(s.range, [2, 3]);
     });
 
+    it('slice clean text', () => {
+        let doc = parse('<p>Lorem ipsum dolor sit amet, consectetur adipisicing elit.</p>');
+        let s = slice(doc, 12, 26);
+        equal(s.toString('ins'), '<ins>dolor sit amet</ins>');
+
+        doc = parse('<p>Lorem ipsum <a>dolor sit amet, consectetur adipisicing elit</a>.</p>');
+        s = slice(doc, 12, 26);
+        equal(s.toString('ins'), '<ins>dolor sit amet</ins>');
+
+        doc = parse('<p><a>Lorem ipsum </a>dolor sit amet, consectetur adipisicing elit.</p>');
+        s = slice(doc, 12, 26);
+        equal(s.toString('ins'), '<ins>dolor sit amet</ins>');
+
+        doc = parse('Lorem ipsum dolor sit amet, consectetur adipisicing elit.');
+        s = slice(doc, 12, 26);
+        equal(s.toString('ins'), '<ins>dolor sit amet</ins>');
+    });
+
     it('slice on tag edge', () => {
         // Touching tag edges at the beginning of range
         let doc = parse('<div>aaa <a><c>foo <b>bar</b> baz</c></a> bbb</div>');

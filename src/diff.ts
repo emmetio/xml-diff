@@ -53,11 +53,14 @@ export default function diff(from: ParsedModel, to: ParsedModel, options: Option
             const chunk = slice(to, offset, offset + value.length);
 
             // Move tokens preceding sliced fragment to output
-            while (tokenPos < chunk.range[0]) {
-                tokens.push(to.tokens[tokenPos++]);
+            if (chunk.range) {
+                while (tokenPos < chunk.range[0]) {
+                    tokens.push(to.tokens[tokenPos++]);
+                }
+
+                tokenPos = chunk.range[1] + 1;
             }
 
-            tokenPos = chunk.range[1] + 1;
             tokens.push(insToken(value, offset, chunk));
             offset += value.length;
         } else if (d[0] === DIFF_EQUAL) {

@@ -1,7 +1,7 @@
 <document>
 <section>
 <toc-entry idref="1">aaa.</toc-entry> 
-<toc-entry idref="2"><ins>bbb.</ins></toc-entry> 
+<ins><toc-entry idref="2">bbb.</toc-entry></ins> 
 <toc-entry idref="3">ccc.</toc-entry> 
 </section>
 </document>
