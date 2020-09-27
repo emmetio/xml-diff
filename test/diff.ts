@@ -183,6 +183,44 @@ describe('Diff documents', () => {
         );
     });
 
+    it('diff on document edge', () => {
+        equal(
+            diff(
+                '<p>111</p>',
+                '<p>222 111</p>'
+            ),
+            '<p><ins>222 </ins>111</p>'
+        );
+
+        equal(
+            diff(
+                '<p>test 1</p>',
+                '<p>hello test 2</p>'
+            ),
+            '<p><ins>hello </ins>test <del>1</del><ins>2</ins></p>'
+        );
+    });
+
+    it('compact whitespace', () => {
+        equal(
+            diff(
+                '<p>test1</p>',
+                '<p>test 1</p>',
+                { compact: true }
+            ),
+            '<p>test<ins> </ins>1</p>'
+        );
+
+        equal(
+            diff(
+                '<p>test1</p><p>test2</p>',
+                '<p>test1</p>\n\n\t\t\t<p>test2</p>',
+                { compact: true }
+            ),
+            '<p>test1</p>\n\n\t\t\t<p>test2</p>'
+        );
+    });
+
     it('suppress whitespace', () => {
         const from = read('samples/suppress-space-from.xml');
         const to = read('samples/suppress-space-to.xml');

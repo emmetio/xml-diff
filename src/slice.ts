@@ -23,9 +23,9 @@ export class SliceResult {
     tokens: SliceToken[];
 
     /** Range of original document tokens included inside `token` fragment */
-    range?: SliceRange;
+    range: SliceRange;
 
-    constructor(tokens: SliceToken[], range?: SliceRange) {
+    constructor(tokens: SliceToken[], range: SliceRange) {
         this.tokens = tokens;
         this.range = range;
     }
@@ -63,26 +63,24 @@ export function slice(doc: ParsedModel, from: number, to: number): SliceResult {
     const pushText = (value: string) => value && tokens.push(value);
 
     let offset = from;
-    if (range) {
-        doc.tokens.slice(range[0], range[1] + 1).forEach(token => {
-            pushText(doc.content.slice(offset, token.location));
-            offset = token.location;
+    doc.tokens.slice(range[0], range[1]).forEach(token => {
+        pushText(doc.content.slice(offset, token.location));
+        offset = token.location;
 
-            if (token.type === ElementType.Open) {
-                stack.push([token, tokens.length]);
-                tokens.push(token.value);
-            } else if (token.type === ElementType.Close) {
-                if (!stack.pop()) {
-                    // Closing element outside of stack
-                    tokens.push(SliceOp.Close, token.value, SliceOp.Open);
-                } else {
-                    tokens.push(token.value);
-                }
+        if (token.type === ElementType.Open) {
+            stack.push([token, tokens.length]);
+            tokens.push(token.value);
+        } else if (token.type === ElementType.Close) {
+            if (!stack.pop()) {
+                // Closing element outside of stack
+                tokens.push(SliceOp.Close, token.value, SliceOp.Open);
             } else {
                 tokens.push(token.value);
             }
-        });
-    }
+        } else {
+            tokens.push(token.value);
+        }
+    });
 
     pushText(doc.content.slice(offset, to));
 
@@ -214,13 +212,13 @@ function findTokenStart(model: ParsedModel, pos: number): number {
     const il = model.tokens.length;
     while (i < il) {
         const token = model.tokens[i];
-        // Edge case: skip closing tags from lookup precisely at given location
-        if (token.location === pos && (token.type === ElementType.SelfClose || token.type === ElementType.Close)) {
-            i++;
-            continue;
+
+        if (token.location > pos) {
+            break;
         }
 
-        if (token.location >= pos) {
+        // Edge case: skip closing tags from lookup precisely at given location
+        if (token.location === pos && token.type !== ElementType.SelfClose && token.type !== ElementType.Close) {
             break;
         }
 
@@ -233,7 +231,7 @@ function findTokenStart(model: ParsedModel, pos: number): number {
 /**
  * Returns optimal range of tokens for slicing
  */
-function getSliceRange(model: ParsedModel, from: number, to: number): SliceRange | undefined {
+function getSliceRange(model: ParsedModel, from: number, to: number): SliceRange {
     const tokens: Token[] = [];
     const stack: string[] = [];
     let start = findTokenStart(model, from);
@@ -288,9 +286,7 @@ function getSliceRange(model: ParsedModel, from: number, to: number): SliceRange
         }
     }
 
-    if (tokens.length) {
-        return [start, start + tokens.length - 1];
-    }
+    return [start, start + tokens.length];
 }
 
 function last<T>(arr: T[]): T | undefined {

@@ -53,14 +53,11 @@ export default function diff(from: ParsedModel, to: ParsedModel, options: Option
             const chunk = slice(to, offset, offset + value.length);
 
             // Move tokens preceding sliced fragment to output
-            if (chunk.range) {
-                while (tokenPos < chunk.range[0]) {
-                    tokens.push(to.tokens[tokenPos++]);
-                }
-
-                tokenPos = chunk.range[1] + 1;
+            while (tokenPos < chunk.range[0]) {
+                tokens.push(to.tokens[tokenPos++]);
             }
 
+            tokenPos = chunk.range[1];
             tokens.push(insToken(value, offset, chunk));
             offset += value.length;
         } else if (d[0] === DIFF_EQUAL) {
@@ -109,7 +106,7 @@ export default function diff(from: ParsedModel, to: ParsedModel, options: Option
     });
 
     if (options.compact) {
-        // tokens = compactIns(tokens, options);
+        tokens = compactIns(tokens, options);
         tokens = compactDel(to.content, tokens, options);
     }
 
@@ -122,6 +119,33 @@ export default function diff(from: ParsedModel, to: ParsedModel, options: Option
 /**
  * Optimizes given token list by removing meaningless insertion tags
  */
+function compactIns(tokens: Token[], options: Options): Token[] {
+    const result: Token[] = [];
+    tokens = tokens.slice();
+
+    while (tokens.length) {
+        const token = tokens.shift()!;
+
+        if (isType(token, ElementTypeAddon.Insert) && isWhitespace(token.name)) {
+            // Inserted whitespace.
+            // It can be either significant (`ab` -> `a b`) or insignificant,
+            // if this whitespace is empty or is right after non-inline element
+            const prev = result[result.length - 1];
+            if (isTagToken(prev) && prev.location === token.location && !isInlineElement(prev, options)) {
+                result.push({
+                    name: '#whitespace',
+                    type: ElementTypeAddon.Space,
+                    value: token.name,
+                    location: token.location,
+                });
+                continue;
+            }
+        }
+        result.push(token);
+    }
+
+    return result;
+}
 // function compactIns(tokens: Token[], options: Options): Token[] {
 //     const result: Token[] = [];
 //     tokens = tokens.slice();
@@ -167,7 +191,7 @@ export default function diff(from: ParsedModel, to: ParsedModel, options: Option
 function compactDel(content: string, tokens: Token[], options: Options): Token[] {
     return tokens.filter((token, i) => {
         if (isType(token, ElementTypeAddon.Delete) && isWhitespace(token.name)) {
-            if (isWhitespace(content.charAt(token.location - 1)) || isWhitespace(content.charAt(token.location + 1))) {
+            if (isWhitespace(content.charAt(token.location - 1)) || isWhitespace(content.charAt(token.location))) {
                 // There’s whitespace before or after deleted whitespace token
                 return false;
             }
@@ -197,10 +221,29 @@ export function isType(token: Token | undefined, type: TokenType): boolean {
 }
 
 /**
+ * Check if given token contains tag
+ */
+function isTagToken(token: Token): boolean {
+    return token.type === ElementType.Open
+        || token.type === ElementType.Close
+        || token.type === ElementType.SelfClose;
+}
+
+/**
  * Check if given token is an inline-level HTML element
  */
 function isInlineElement(token: Token, options: Options): boolean {
-    return token && options.inlineElements.includes(token.name);
+    if (token) {
+        let { name } = token;
+        if (token.type === ElementTypeAddon.Insert) {
+            name = 'ins';
+        } else if (token.type === ElementTypeAddon.Delete) {
+            name = 'del';
+        }
+        return options.inlineElements.includes(name);
+    }
+
+    return false;
 }
 
 /**
