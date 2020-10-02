@@ -1,9 +1,10 @@
 import { diff_match_patch, DIFF_DELETE, DIFF_INSERT, DIFF_EQUAL } from 'diff-match-patch';
 import { ElementType } from '@emmetio/html-matcher';
-import { ParsedModel, Token, ElementTypeAddon, TokenType } from './types';
+import { ParsedModel, Token, ElementTypeAddon } from './types';
 import createOptions, { Options } from './options';
 import wordBounds from './word-bounds';
-import { fragment, FragmentOptions, slice, SliceResult } from './slice';
+import { fragment, FragmentOptions, slice, SliceOp, SliceResult } from './slice';
+import { isTagToken, isType, isWhitespace } from './utils';
 
 /**
  * Calculates diff between given parsed document and produces new model with diff
@@ -50,7 +51,7 @@ export default function diff(from: ParsedModel, to: ParsedModel, options: Option
                 value = value.slice(1);
             }
 
-            const chunk = slice(to, offset, offset + value.length);
+            const chunk = slice(to, offset, offset + value.length, tokenPos);
 
             // Move tokens preceding sliced fragment to output
             while (tokenPos < chunk.range[0]) {
@@ -207,29 +208,6 @@ function compactDel(content: string, tokens: Token[], options: Options): Token[]
 }
 
 /**
- * Check if given string is whitespace-only
- */
-function isWhitespace(str: string): boolean {
-    return str ? /^[\s\n\r]+$/.test(str) : false;
-}
-
-/**
- * Check if given token has specified `type`
- */
-export function isType(token: Token | undefined, type: TokenType): boolean {
-    return token ? token.type === type : false;
-}
-
-/**
- * Check if given token contains tag
- */
-function isTagToken(token: Token): boolean {
-    return token.type === ElementType.Open
-        || token.type === ElementType.Close
-        || token.type === ElementType.SelfClose;
-}
-
-/**
  * Check if given token is an inline-level HTML element
  */
 function isInlineElement(token: Token, options: Options): boolean {
@@ -298,8 +276,15 @@ function delToken(name: string, location: number, value: SliceResult): Token {
 }
 
 function insToken(name: string, location: number, value: SliceResult): Token {
+    let fullName = '';
+    for (const token of value.tokens) {
+        if (token !== SliceOp.Open && token !== SliceOp.Close) {
+            fullName += token;
+        }
+    }
+
     return {
-        name,
+        name: fullName,
         type: ElementTypeAddon.Insert,
         location,
         offset: name.length,

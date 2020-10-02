@@ -71,7 +71,7 @@ describe('XML Slice', () => {
 
         let s = fragment(doc, 8, 11);
         equal(s.toString('del'), '<del><div><a><c><b>bar</b></c></a></div></del>');
-        deepEqual(s.range, [3, 4]);
+        deepEqual(s.range, [4, 4]);
 
         s = fragment(doc, 2, 11);
         equal(s.toString('del'), '<del><div>a <a><c>foo <b>bar</b></c></a></div></del>');
@@ -79,21 +79,21 @@ describe('XML Slice', () => {
 
         s = fragment(doc, 0, 11);
         equal(s.toString('del'), '<del><div>aaa <a><c>foo <b>bar</b></c></a></div></del>');
-        deepEqual(s.range, [0, 4]);
+        deepEqual(s.range, [1, 4]);
 
         s = fragment(doc, 4, 15);
         equal(s.toString('del'), '<del><div><a><c>foo <b>bar</b> baz</c></a></div></del>');
-        deepEqual(s.range, [1, 6]);
+        deepEqual(s.range, [3, 6]);
     });
 
     it('fragment with tag filter', () => {
         const doc = parse('<div>aaa <a><c>foo <b>bar</b> baz</c></a> bbb</div>');
         let s = fragment(doc, 8, 11, { tags: ['a', 'b'] });
         equal(s.toString('del'), '<del><a><b>bar</b></a></del>');
-        deepEqual(s.range, [3, 4]);
+        deepEqual(s.range, [4, 4]);
 
         s = fragment(doc, 8, 11, { tags: [] });
         equal(s.toString('del'), '<del>bar</del>');
-        deepEqual(s.range, [3, 4]);
+        deepEqual(s.range, [4, 4]);
     });
 });

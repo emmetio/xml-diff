@@ -199,6 +199,14 @@ describe('Diff documents', () => {
             ),
             '<p><ins>hello </ins>test <del>1</del><ins>2</ins></p>'
         );
+
+        equal(
+            diff(
+                '<content>Section <em>content</em> 1</content>',
+                '<content>Section <em>word</em> 1</content>',
+            ),
+            '<content>Section <em><del>content</del><ins>word</ins></em> 1</content>'
+        );
     });
 
     it('compact whitespace', () => {
@@ -229,5 +237,17 @@ describe('Diff documents', () => {
             diff(from, to, { wordPatches: true }),
             read('samples/suppress-space-result.xml')
         );
+    });
+
+    it.skip('debug', () => {
+        const from = read('samples/line-nums-before.xml');
+        const to = read('samples/line-nums-after.xml');
+
+        console.log(diff(from, to, { preserveTags: ['line'] }));
+
+        // equal(
+        //     diff(from, to, { wordPatches: true }),
+        //     read('samples/suppress-space-result.xml')
+        // );
     });
 });

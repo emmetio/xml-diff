@@ -1,12 +1,13 @@
 import { ElementType } from '@emmetio/html-matcher';
 import { ElementTypeAddon, ParsedModel, Token } from './types';
+import { getElementStack } from './utils';
 
 export const enum SliceOp {
     Open = 1,
     Close = -1
 }
 
-export type SliceToken = string | SliceOp;
+export type SliceToken = string | Token | SliceOp;
 export type SliceRange = [number, number];
 type InnerStackItem = [Token, number];
 
@@ -44,7 +45,7 @@ export class SliceResult {
                 return opTag ? `</${opTag}>` : '';
             }
 
-            return t;
+            return typeof t === 'string' ? t : t.value;
         }).join('');
     }
 }
@@ -54,11 +55,12 @@ export class SliceResult {
  * a _replacement_ for the same range of given document.
  * Inserts `SliceOp` operation markers in appropriate positions to maintain valid
  * XML state.
+ * @param start Token location hint in parsed document where to start fragment lookup
  */
-export function slice(doc: ParsedModel, from: number, to: number): SliceResult {
+export function slice(doc: ParsedModel, from: number, to: number, start?: number): SliceResult {
     const stack: InnerStackItem[] = [];
     const tokens: SliceToken[] = [SliceOp.Open];
-    const range = getSliceRange(doc, from, to);
+    const range = getSliceRange(doc, from, to, start);
 
     const pushText = (value: string) => value && tokens.push(value);
 
@@ -69,16 +71,16 @@ export function slice(doc: ParsedModel, from: number, to: number): SliceResult {
 
         if (token.type === ElementType.Open) {
             stack.push([token, tokens.length]);
-            tokens.push(token.value);
+            tokens.push(token);
         } else if (token.type === ElementType.Close) {
             if (!stack.pop()) {
                 // Closing element outside of stack
-                tokens.push(SliceOp.Close, token.value, SliceOp.Open);
+                tokens.push(SliceOp.Close, token, SliceOp.Open);
             } else {
-                tokens.push(token.value);
+                tokens.push(token);
             }
         } else {
-            tokens.push(token.value);
+            tokens.push(token);
         }
     });
 
@@ -93,7 +95,7 @@ export function slice(doc: ParsedModel, from: number, to: number): SliceResult {
     while (stack.length) {
         // We have unclosed tags: we should add intermediate open/close markers
         const item = stack.pop()!;
-        tokens.splice(item[1], 1, SliceOp.Close, item[0].value, SliceOp.Open);
+        tokens.splice(item[1], 1, SliceOp.Close, item[0], SliceOp.Open);
     }
 
     return new SliceResult(optimize(tokens), range);
@@ -182,31 +184,6 @@ function isAllowedToken(token: Token, options: FragmentOptions): boolean {
     return true;
 }
 
-/**
- * Collects element stack for given text location
- */
-function getElementStack(model: ParsedModel, pos: number): { stack: Token[], start: number } {
-    const stack: Token[] = [];
-    let start = 0;
-
-    while (start < model.tokens.length) {
-        const token = model.tokens[start];
-        if (token.location >= pos) {
-            break;
-        }
-
-        if (token.type === ElementType.Open) {
-            stack.push(token);
-        } else if (token.type === ElementType.Close) {
-            stack.pop();
-        }
-
-        start++;
-    }
-
-    return { stack, start };
-}
-
 function findTokenStart(model: ParsedModel, pos: number): number {
     let i = 0;
     const il = model.tokens.length;
@@ -231,10 +208,9 @@ function findTokenStart(model: ParsedModel, pos: number): number {
 /**
  * Returns optimal range of tokens for slicing
  */
-function getSliceRange(model: ParsedModel, from: number, to: number): SliceRange {
+function getSliceRange(model: ParsedModel, from: number, to: number, start = findTokenStart(model, from)): SliceRange {
     const tokens: Token[] = [];
     const stack: string[] = [];
-    let start = findTokenStart(model, from);
     let i = start;
 
     while (i < model.tokens.length) {
