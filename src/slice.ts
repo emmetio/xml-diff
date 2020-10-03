@@ -165,7 +165,7 @@ export function fragment(doc: ParsedModel, from: number, to: number, options: Fr
         end = i++;
 
         push(doc.content.slice(offset, token.location));
-        offset = token.location;
+        offset = token.location + (token.offset || 0);
 
         if (token.type === ElementType.Open) {
             stack.push(token);

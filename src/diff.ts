@@ -42,10 +42,11 @@ export default function diff(from: ParsedModel, to: ParsedModel, options: Option
 
             if (!shouldSkipDel(to.content, value, fromOffset, to.tokens, tokenPos, options)) {
                 const chunk = fragment(from, fromOffset, fromOffset + value.length, fragmentOpt);
-                // Edge case: put delete patch right after open tag at the same location
+                // Edge case: put delete patch right after open tag or non-suppressed
+                // whitespace at the same location
                 while (tokenPos < to.tokens.length) {
                     const t = to.tokens[tokenPos];
-                    if (t.location === location && isType(t, ElementType.Open)) {
+                    if (t.location === location && (isType(t, ElementType.Open) || (isType(t, ElementTypeAddon.Space) && !t.offset))) {
                         tokens.push(t);
                         tokenPos++;
                     } else {
@@ -173,10 +174,10 @@ function shouldSkipDel(content: string, value: string, pos: number, input: Token
             return true;
         }
 
-        if (!isInlineElement(input[inputPos - 1], options) && !isInlineElement(input[inputPos], options)) {
-            // Whitespace between non-inline elements
-            return true;
-        }
+        // if (!isInlineElement(input[inputPos - 1], options) && !isInlineElement(input[inputPos], options)) {
+        //     // Whitespace between non-inline elements
+        //     return true;
+        // }
     }
 
     return false;

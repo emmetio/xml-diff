@@ -37,6 +37,10 @@ export function getElementStack(model: ParsedModel, pos: number): { stack: Token
             break;
         }
 
+        if (token.location === pos && token.type === ElementTypeAddon.Space && token.offset) {
+            break;
+        }
+
         if (token.type === ElementType.Open) {
             stack.push(token);
         } else if (token.type === ElementType.Close) {

@@ -30,7 +30,7 @@ describe('Diff documents', () => {
                 '111 222 <em>333 444</em> 555',
                 '111 <em>444</em> 555'
             ),
-            '111 <del>222 333 </del><em>444</em> 555'
+            '111 <em><del>222 333 </del>444</em> 555'
         );
 
         equal(
@@ -56,7 +56,7 @@ describe('Diff documents', () => {
                 '<a>111 </a>222 <b>333</b><c> 444 555</c>',
                 '<a>111 </a><b>333</b><c> 444 555</c>',
             ),
-            '<a>111 </a><del>222 </del><b>333</b><c> 444 555</c>'
+            '<a>111 </a><b><del>222 </del>333</b><c> 444 555</c>'
         );
     });
 
@@ -133,7 +133,7 @@ describe('Diff documents', () => {
                 '§ 301. Public Printer: appointment',
                 '§ 301. <em>Director of the Government</em> Publishing Office: appointment'
             ),
-            '§ 301. <del>Public Printer</del><ins><em>Director of the Government</em> Publishing Office</ins>: appointment'
+            '§ 301. <em><del>Public Printer</del><ins>Director of the Government</ins></em><ins> Publishing Office</ins>: appointment'
         );
 
         equal(
@@ -216,6 +216,15 @@ describe('Diff documents', () => {
             ),
             '<doc><section><del>A</del><ins>One <a>of</a> the</ins> fundamental objective<ins>s</ins> of NASA</section></doc>'
         );
+
+        equal(
+            diff(
+                '<doc>\n\t<section>A fundamental objective of NASA</section>\n</doc>',
+                '<doc>\n\t<section>One <a>of</a> the fundamental objectives of NASA</section>\n</doc>',
+                { compact: true }
+            ),
+            '<doc>\n\t<section><del>A</del><ins>One <a>of</a> the</ins> fundamental objective<ins>s</ins> of NASA</section>\n</doc>'
+        );
     });
 
     it('compact whitespace', () => {
@@ -238,19 +247,6 @@ describe('Diff documents', () => {
         );
     });
 
-    it.only('debug', () => {
-        equal(
-            diff(
-                '<doc>\n\t<section>A fundamental objective of NASA</section>\n</doc>',
-                '<doc>\n\t<section>One <a>of</a> the fundamental objectives of NASA</section>\n</doc>',
-                { compact: true }
-            ),
-            '<doc>\n\t<section><del>A</del><ins>One <a>of</a> the</ins> fundamental objective<ins>s</ins> of NASA</section>\n</doc>'
-        );
-        // console.log(result);
-
-    });
-
     it('suppress whitespace', () => {
         const from = read('samples/suppress-space-from.xml');
         const to = read('samples/suppress-space-to.xml');
@@ -258,6 +254,15 @@ describe('Diff documents', () => {
         equal(
             diff(from, to, { wordPatches: true }),
             read('samples/suppress-space-result.xml')
+        );
+
+        equal(
+            diff(
+                '<p>foo (\n\t\t\t<span>bar</span>) baz</p>',
+                '<p>foo (bar) baz</p>',
+                { compact: true }
+            ),
+            '<p>foo (<del>\n\t\t\t</del>bar) baz</p>'
         );
     });
 
