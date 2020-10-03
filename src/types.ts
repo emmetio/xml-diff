@@ -7,26 +7,33 @@ export interface ParsedModel {
 
 export const enum ElementTypeAddon {
     Space = 100,
-    Insert = 101,
-    Delete = 103,
+    Diff = 101,
     Custom = 200,
 }
 
 export type TokenType = ElementType | ElementTypeAddon;
 
 export interface Token {
-    name: string;
     type: TokenType;
 
-    /** Token location in original text */
+    /** Token name */
+    name: string;
+
+    /** Token location in document */
     location: number;
 
     /** Token’s raw value */
     value: string;
 
+    /** Plain text contents of current token, if any */
+    text?: string;
+
     /** Optional location offset */
     offset?: number;
 
-    /** Custom field for token ordering/sorting */
+    /**
+     * Custom field for token ordering/sorting
+     * @deprecated
+     */
     order?: number;
 }

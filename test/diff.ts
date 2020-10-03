@@ -183,7 +183,7 @@ describe('Diff documents', () => {
         );
     });
 
-    it('diff on document edge', () => {
+    it('diff on element edge', () => {
         equal(
             diff(
                 '<p>111</p>',
@@ -207,6 +207,15 @@ describe('Diff documents', () => {
             ),
             '<content>Section <em><del>content</del><ins>word</ins></em> 1</content>'
         );
+
+        equal(
+            diff(
+                '<doc><section>A fundamental objective of NASA</section></doc>',
+                '<doc><section>One <a>of</a> the fundamental objectives of NASA</section></doc>',
+                { compact: true }
+            ),
+            '<doc><section><del>A</del><ins>One <a>of</a> the</ins> fundamental objective<ins>s</ins> of NASA</section></doc>'
+        );
     });
 
     it('compact whitespace', () => {
@@ -227,6 +236,19 @@ describe('Diff documents', () => {
             ),
             '<p>test1</p>\n\n\t\t\t<p>test2</p>'
         );
+    });
+
+    it.only('debug', () => {
+        equal(
+            diff(
+                '<doc>\n\t<section>A fundamental objective of NASA</section>\n</doc>',
+                '<doc>\n\t<section>One <a>of</a> the fundamental objectives of NASA</section>\n</doc>',
+                { compact: true }
+            ),
+            '<doc>\n\t<section><del>A</del><ins>One <a>of</a> the</ins> fundamental objective<ins>s</ins> of NASA</section>\n</doc>'
+        );
+        // console.log(result);
+
     });
 
     it('suppress whitespace', () => {

@@ -3,8 +3,8 @@ import { ElementType } from '@emmetio/html-matcher';
 import { ParsedModel, Token, ElementTypeAddon } from './types';
 import createOptions, { Options } from './options';
 import wordBounds from './word-bounds';
-import { fragment, FragmentOptions, slice, SliceOp, SliceResult } from './slice';
-import { isTagToken, isType, isWhitespace } from './utils';
+import { fragment, FragmentOptions, slice } from './slice';
+import { isTagToken, isType, isWhitespace, last } from './utils';
 
 /**
  * Calculates diff between given parsed document and produces new model with diff
@@ -21,8 +21,7 @@ export default function diff(from: ParsedModel, to: ParsedModel, options: Option
         diffs = wordBounds(diffs);
     }
 
-    // const toTokens = to.tokens.slice();
-    let tokens: Token[] = [];
+    const tokens: Token[] = [];
     let offset = 0;
     let fromOffset = 0;
     let tokenPos = 0;
@@ -40,8 +39,21 @@ export default function diff(from: ParsedModel, to: ParsedModel, options: Option
                 fromOffset += 1;
                 value = value.slice(1);
             }
-            const chunk = fragment(from, fromOffset, fromOffset + value.length, fragmentOpt);
-            tokens.push(delToken(value, location, chunk));
+
+            if (!shouldSkipDel(to.content, value, fromOffset, to.tokens, tokenPos, options)) {
+                const chunk = fragment(from, fromOffset, fromOffset + value.length, fragmentOpt);
+                // Edge case: put delete patch right after open tag at the same location
+                while (tokenPos < to.tokens.length) {
+                    const t = to.tokens[tokenPos];
+                    if (t.location === location && isType(t, ElementType.Open)) {
+                        tokens.push(t);
+                        tokenPos++;
+                    } else {
+                        break;
+                    }
+                }
+                tokens.push(chunk.toDiffToken('del', value, location));
+            }
             fromOffset += value.length;
         } else if (d[0] === DIFF_INSERT) {
             // Inserted fragment: should insert open and close tags at proper
@@ -51,15 +63,17 @@ export default function diff(from: ParsedModel, to: ParsedModel, options: Option
                 value = value.slice(1);
             }
 
-            const chunk = slice(to, offset, offset + value.length, tokenPos);
-
-            // Move tokens preceding sliced fragment to output
-            while (tokenPos < chunk.range[0]) {
-                tokens.push(to.tokens[tokenPos++]);
+            if (shouldSkipIns(value, offset, tokens, options)) {
+                tokens.push({
+                    name: '#whitespace',
+                    type: ElementTypeAddon.Space,
+                    value,
+                    location: offset,
+                });
+            } else {
+                tokenPos = moveSlice(to, offset, offset + value.length, tokenPos, tokens);
             }
 
-            tokenPos = chunk.range[1];
-            tokens.push(insToken(value, offset, chunk));
             offset += value.length;
         } else if (d[0] === DIFF_EQUAL) {
             // Unmodified content
@@ -106,11 +120,6 @@ export default function diff(from: ParsedModel, to: ParsedModel, options: Option
         }
     });
 
-    if (options.compact) {
-        tokens = compactIns(tokens, options);
-        tokens = compactDel(to.content, tokens, options);
-    }
-
     return {
         tokens: tokens.concat(to.tokens.slice(tokenPos)),
         content: to.content
@@ -118,93 +127,59 @@ export default function diff(from: ParsedModel, to: ParsedModel, options: Option
 }
 
 /**
- * Optimizes given token list by removing meaningless insertion tags
+ * Moves sliced fragment from `model` document to `output`, starting at `tokenPos`
+ * token location
  */
-function compactIns(tokens: Token[], options: Options): Token[] {
-    const result: Token[] = [];
-    tokens = tokens.slice();
+function moveSlice(model: ParsedModel, from: number, to: number, tokenPos: number, output: Token[]) {
+    const chunk = slice(model, from, to, tokenPos);
 
-    while (tokens.length) {
-        const token = tokens.shift()!;
-
-        if (isType(token, ElementTypeAddon.Insert) && isWhitespace(token.name)) {
-            // Inserted whitespace.
-            // It can be either significant (`ab` -> `a b`) or insignificant,
-            // if this whitespace is empty or is right after non-inline element
-            const prev = result[result.length - 1];
-            if (isTagToken(prev) && prev.location === token.location && !isInlineElement(prev, options)) {
-                result.push({
-                    name: '#whitespace',
-                    type: ElementTypeAddon.Space,
-                    value: token.name,
-                    location: token.location,
-                });
-                continue;
-            }
-        }
-        result.push(token);
+    // Move tokens preceding sliced fragment to output
+    while (tokenPos < chunk.range[0]) {
+        output.push(model.tokens[tokenPos++]);
     }
 
-    return result;
+    tokenPos = chunk.range[1];
+
+    for (const t of chunk.toTokens('ins')) {
+        output.push(t);
+    }
+    return tokenPos;
 }
-// function compactIns(tokens: Token[], options: Options): Token[] {
-//     const result: Token[] = [];
-//     tokens = tokens.slice();
-
-//     while (tokens.length) {
-//         const token = tokens.shift()!;
-
-//         if (isType(token, ElementTypeAddon.InsertBefore)) {
-//             if (isType(tokens[0], ElementTypeAddon.InsertAfter) && token.location === tokens[0].location) {
-//                 // Empty token
-//                 tokens.shift();
-//                 continue;
-//             }
-
-//             if (isType(tokens[0], ElementTypeAddon.Space) && isType(tokens[1], ElementTypeAddon.InsertAfter)) {
-//                 // Inserted whitespace.
-//                 // It can be either significant (`ab` -> `a b`) or insignificant,
-//                 // if this whitespace is empty or is right after non-inline element
-//                 const prev = result[result.length - 1];
-//                 if (
-//                     token.location === tokens[1].location
-//                     || (
-//                         // Check that only whitespace was inserted
-//                         (tokens[1].location - token.location) === tokens[0].offset
-//                         && isTagToken(prev) && !isInlineElement(prev, options)
-//                     )
-//                 ) {
-//                     result.push(tokens.shift()!);
-//                     tokens.shift();
-//                     continue;
-//                 }
-//             }
-//         }
-//         result.push(token);
-//     }
-
-//     return result;
-// }
 
 /**
- * Optimizes given token list by removing meaningless delete tokens
+ * Check if given INSERT patch should be omitted to reduce noise
  */
-function compactDel(content: string, tokens: Token[], options: Options): Token[] {
-    return tokens.filter((token, i) => {
-        if (isType(token, ElementTypeAddon.Delete) && isWhitespace(token.name)) {
-            if (isWhitespace(content.charAt(token.location - 1)) || isWhitespace(content.charAt(token.location))) {
-                // There’s whitespace before or after deleted whitespace token
-                return false;
-            }
+function shouldSkipIns(value: string, pos: number, output: Token[], options: Options): boolean {
+    if (options.compact && isWhitespace(value)) {
+        // Inserted whitespace.
+        // It can be either significant (`ab` -> `a b`) or insignificant,
+        // if this whitespace is empty or is right after non-inline element
+        const prev = last(output);
+        if (prev && isTagToken(prev) && prev.location === pos && !isInlineElement(prev, options)) {
+            return true;
+        }
+    }
 
-            if (!isInlineElement(tokens[i - 1], options) && !isInlineElement(tokens[i + 1], options)) {
-                // Whitespace between non-inline elements
-                return false;
-            }
+    return false;
+}
+
+/**
+ * Check if given DELETE patch should be omitted
+ */
+function shouldSkipDel(content: string, value: string, pos: number, input: Token[], inputPos: number, options: Options): boolean {
+    if (options.compact && isWhitespace(value)) {
+        if (isWhitespace(content.charAt(pos - 1)) || isWhitespace(content.charAt(pos))) {
+            // There’s whitespace before or after deleted whitespace token
+            return true;
         }
 
-        return true;
-    });
+        if (!isInlineElement(input[inputPos - 1], options) && !isInlineElement(input[inputPos], options)) {
+            // Whitespace between non-inline elements
+            return true;
+        }
+    }
+
+    return false;
 }
 
 /**
@@ -212,13 +187,8 @@ function compactDel(content: string, tokens: Token[], options: Options): Token[]
  */
 function isInlineElement(token: Token, options: Options): boolean {
     if (token) {
-        let { name } = token;
-        if (token.type === ElementTypeAddon.Insert) {
-            name = 'ins';
-        } else if (token.type === ElementTypeAddon.Delete) {
-            name = 'del';
-        }
-        return options.inlineElements.includes(name);
+        return token.type === ElementTypeAddon.Diff
+            || options.inlineElements.includes(token.name);
     }
 
     return false;
@@ -257,37 +227,11 @@ function getElementStack(model: ParsedModel, pos: number): { stack: Token[], i: 
  * patch
  */
 function suppressWhitespace(value: string, pos: number, output: Token[]): boolean {
-    const lastToken = output[output.length - 1];
+    const lastToken = last(output);
     return lastToken
-        ? lastToken.type === ElementTypeAddon.Space
+        ? isType(lastToken, ElementTypeAddon.Space)
             && !!lastToken.offset
             && lastToken.location === pos
             && value[0] === ' '
         : false;
-}
-
-function delToken(name: string, location: number, value: SliceResult): Token {
-    return {
-        name,
-        type: ElementTypeAddon.Delete,
-        location,
-        value: value.toString('del')
-    };
-}
-
-function insToken(name: string, location: number, value: SliceResult): Token {
-    let fullName = '';
-    for (const token of value.tokens) {
-        if (token !== SliceOp.Open && token !== SliceOp.Close) {
-            fullName += token;
-        }
-    }
-
-    return {
-        name: fullName,
-        type: ElementTypeAddon.Insert,
-        location,
-        offset: name.length,
-        value: value.toString('ins')
-    };
 }

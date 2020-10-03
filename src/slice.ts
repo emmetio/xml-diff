@@ -1,15 +1,18 @@
 import { ElementType } from '@emmetio/html-matcher';
 import { ElementTypeAddon, ParsedModel, Token } from './types';
-import { getElementStack } from './utils';
+import { diffToken, getElementStack, last } from './utils';
 
-export const enum SliceOp {
-    Open = 1,
-    Close = -1
-}
-
-export type SliceToken = string | Token | SliceOp;
+export type SliceToken = string | Token | SliceMark;
 export type SliceRange = [number, number];
 type InnerStackItem = [Token, number];
+
+export interface SliceMark {
+    type: 'slice';
+    /** Token location in original text */
+    location: number;
+    /** Either open or closing mark */
+    close: boolean;
+}
 
 export interface FragmentOptions {
     /** List of allowed tags in extracted fragment, including parents (if enabled) */
@@ -37,16 +40,46 @@ export class SliceResult {
      */
     toString(opTag?: string): string {
         return this.tokens.map(t => {
-            if (t === SliceOp.Open) {
-                return opTag ? `<${opTag}>` : '';
+            if (typeof t === 'string') {
+                return t;
             }
 
-            if (t === SliceOp.Close) {
-                return opTag ? `</${opTag}>` : '';
+            if (isSliceMark(t)) {
+                return opTag ? `<${t.close ? '/' : ''}${opTag}>` : '';
             }
 
-            return typeof t === 'string' ? t : t.value;
+            return t.value;
         }).join('');
+    }
+
+    /**
+     * Returns list of tag tokens
+     */
+    toTokens(opTag: string): Token[] {
+        const result: Token[] = [];
+        for (const t of this.tokens) {
+            if (typeof t !== 'string') {
+                if (isSliceMark(t)) {
+                    result.push({
+                        type: ElementTypeAddon.Diff,
+                        location: t.location,
+                        name: opTag,
+                        value: t.close ? `</${opTag}>` : `<${opTag}>`
+                    });
+                } else {
+                    result.push(t);
+                }
+            }
+        }
+
+        return result;
+    }
+
+    /**
+     * Converts current slice result to diff token
+     */
+    toDiffToken(name: string, text: string, location: number) {
+        return diffToken(name, this.toString(name), location, text);
     }
 }
 
@@ -59,7 +92,7 @@ export class SliceResult {
  */
 export function slice(doc: ParsedModel, from: number, to: number, start?: number): SliceResult {
     const stack: InnerStackItem[] = [];
-    const tokens: SliceToken[] = [SliceOp.Open];
+    const tokens: SliceToken[] = [sliceMark(from)];
     const range = getSliceRange(doc, from, to, start);
 
     const pushText = (value: string) => value && tokens.push(value);
@@ -75,7 +108,7 @@ export function slice(doc: ParsedModel, from: number, to: number, start?: number
         } else if (token.type === ElementType.Close) {
             if (!stack.pop()) {
                 // Closing element outside of stack
-                tokens.push(SliceOp.Close, token, SliceOp.Open);
+                tokens.push(sliceMark(offset, true), token, sliceMark(offset));
             } else {
                 tokens.push(token);
             }
@@ -86,16 +119,17 @@ export function slice(doc: ParsedModel, from: number, to: number, start?: number
 
     pushText(doc.content.slice(offset, to));
 
-    if (last(tokens) === SliceOp.Open) {
+    if (isSliceMarkOpen(last(tokens))) {
         tokens.pop();
     } else {
-        tokens.push(SliceOp.Close);
+        tokens.push(sliceMark(to, true));
     }
 
     while (stack.length) {
         // We have unclosed tags: we should add intermediate open/close markers
         const item = stack.pop()!;
-        tokens.splice(item[1], 1, SliceOp.Close, item[0], SliceOp.Open);
+        const pos = item[0].location;
+        tokens.splice(item[1], 1, sliceMark(pos, true), item[0], sliceMark(pos));
     }
 
     return new SliceResult(optimize(tokens), range);
@@ -152,7 +186,30 @@ export function fragment(doc: ParsedModel, from: number, to: number, options: Fr
         }
     }
 
-    return new SliceResult([SliceOp.Open, result, SliceOp.Close], [start, end]);
+    return new SliceResult([sliceMark(from), result, sliceMark(to, true)], [start, end]);
+}
+
+/**
+ * A slice mark factory
+ */
+export function sliceMark(location: number, close = false): SliceMark {
+    return {
+        type: 'slice',
+        location,
+        close
+    };
+}
+
+export function isSliceMark(value: any): value is SliceMark {
+    return value && value.type === 'slice';
+}
+
+export function isSliceMarkOpen(value: any): value is SliceMark {
+    return isSliceMark(value) && !value.close;
+}
+
+export function isSliceMarkClose(value: any): value is SliceMark {
+    return isSliceMark(value) && value.close;
 }
 
 /**
@@ -162,7 +219,7 @@ function optimize(tokens: SliceToken[]): SliceToken[] {
     const result: SliceToken[] = [];
 
     for (let i = 0; i < tokens.length; i++) {
-        if (tokens[i] === SliceOp.Open && tokens[i + 1] === SliceOp.Close) {
+        if (isSliceMarkOpen(tokens[i]) && isSliceMarkClose(tokens[i + 1])) {
             i++;
         } else {
             result.push(tokens[i]);
@@ -263,8 +320,4 @@ function getSliceRange(model: ParsedModel, from: number, to: number, start = fin
     }
 
     return [start, start + tokens.length];
-}
-
-function last<T>(arr: T[]): T | undefined {
-    return arr.length ? arr[arr.length - 1] : void 0;
 }

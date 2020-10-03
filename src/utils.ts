@@ -1,5 +1,5 @@
 import { ElementType } from '@emmetio/html-matcher';
-import { ParsedModel, Token, TokenType } from './types';
+import { ElementTypeAddon, ParsedModel, Token, TokenType } from './types';
 
 /**
  * Check if given string is whitespace-only
@@ -47,4 +47,22 @@ export function getElementStack(model: ParsedModel, pos: number): { stack: Token
     }
 
     return { stack, start };
+}
+
+/**
+ * Returns last item in given array
+ */
+export function last<T>(arr: T[]): T | undefined {
+    return arr.length ? arr[arr.length - 1] : void 0;
+}
+
+/**
+ * Diff token factory
+ */
+export function diffToken(name: string, value: string, location: number, text = ''): Token {
+    return { type: ElementTypeAddon.Diff, name, value, location, text };
+}
+
+export function isDiffToken(token: Token): boolean {
+    return token.type === ElementTypeAddon.Diff;
 }

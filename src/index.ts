@@ -5,6 +5,7 @@ import { ParsedModel } from './types';
 
 export { diff, parse, createOptions, createConsumer, Options, DMPOptions, ParsedModel, Consumer };
 export { slice, fragment } from './slice';
+export { diffToken, isDiffToken } from './utils';
 export { Token, TokenType, ElementTypeAddon } from './types';
 
 /**
