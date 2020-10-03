@@ -83,6 +83,12 @@ export interface Options extends ScannerOptions {
      * E.g. it will be updated to include full word chunks
      */
     wordPatches?: boolean;
+
+    /**
+     * Generate inverted diff: perform `from` → `to` document diff but apply patches
+     * to `from` document
+     */
+    invert?: boolean;
 }
 
 const defaultOptions: Partial<Options> = {
