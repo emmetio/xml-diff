@@ -1,5 +1,5 @@
 import { ElementType } from '@emmetio/html-matcher';
-import { ElementTypeAddon, ParsedModel, Token, TokenType } from './types';
+import { ElementTypeAddon, Token, TokenType } from './types';
 
 /**
  * Check if given string is whitespace-only
@@ -27,12 +27,12 @@ export function isTagToken(token: Token): boolean {
 /**
  * Collects element stack for given text location
  */
-export function getElementStack(model: ParsedModel, pos: number): { stack: Token[], start: number } {
+export function getElementStack(tokens: Token[], pos: number): { stack: Token[], start: number } {
     const stack: Token[] = [];
     let start = 0;
 
-    while (start < model.tokens.length) {
-        const token = model.tokens[start];
+    while (start < tokens.length) {
+        const token = tokens[start];
         if (token.location > pos) {
             break;
         }

@@ -136,7 +136,7 @@ export function slice(doc: ParsedModel, from: number, to: number, start?: number
 }
 
 export function fragment(doc: ParsedModel, from: number, to: number, options: FragmentOptions = {}) {
-    const { stack, start } = getElementStack(doc, from);
+    const { stack, start } = getElementStack(doc.tokens, from);
 
     let offset = from;
     let i = start;
