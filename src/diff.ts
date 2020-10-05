@@ -335,6 +335,15 @@ function getDiff(from: ParsedModel, to: ParsedModel, options: Options): Diff[] {
     }
     let diffs = dmp.diff_main(from.content, to.content);
     dmp.diff_cleanupSemantic(diffs);
+
+    if (options.replaceThreshold && getChangeThreshold(diffs) > options.replaceThreshold) {
+        // Text is too different, mark it as replaced
+        return [
+            [DIFF_DELETE, from.content],
+            [DIFF_INSERT, to.content],
+        ];
+    }
+
     if (options.wordPatches) {
         diffs = wordBounds(diffs);
     }
@@ -366,4 +375,27 @@ function createState(input: Token[]): DiffState {
             return this.ptr < input.length;
         }
     };
+}
+
+function getChangeThreshold(diffs: Diff[]): number {
+    let i = 0;
+    let changed = 0;
+    let unchanged = 0;
+    while (i < diffs.length) {
+        const chunk = diffs[i++];
+        let len = chunk[1].length;
+        if (chunk[0] === DIFF_EQUAL) {
+            unchanged += len;
+        } else {
+            const next = diffs[i];
+            if (chunk[0] === DIFF_DELETE && next && next[0] === DIFF_INSERT) {
+                // Mark consecutive updates as single edit
+                len = (len + next[1].length) / 2;
+                i++;
+            }
+            changed += len;
+        }
+    }
+
+    return changed / unchanged;
 }

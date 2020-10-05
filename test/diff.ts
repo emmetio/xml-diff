@@ -266,6 +266,11 @@ describe('Diff documents', () => {
         );
     });
 
+    it('mark as replaced', () => {
+        equal(diff('<p>foo1 baz</p>', '<p>bar1 baz</p>'), '<p><del>foo</del><ins>bar</ins>1 baz</p>');
+        equal(diff('<p>foo1 baz</p>', '<p>bar1 baz</p>', { replaceThreshold: 0.4 }), '<p><del>foo1 baz</del><ins>bar1 baz</ins></p>');
+    });
+
     it.skip('debug', () => {
         const from = read('samples/line-nums-before.xml');
         const to = read('samples/line-nums-after.xml');
