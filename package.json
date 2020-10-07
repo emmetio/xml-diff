@@ -9,6 +9,7 @@
     "test": "mocha",
     "lint": "tslint ./src/*.ts",
     "build": "rollup -c",
+    "watch": "rollup -wc",
     "clean": "rm -rf ./dist",
     "prepare": "npm run lint && npm test && npm run clean && npm run build"
   },

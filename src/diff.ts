@@ -49,15 +49,14 @@ function diffNatural(from: ParsedModel, to: ParsedModel, options: Options): Pars
     const fragmentOpt: FragmentOptions = {
         tags: options.preserveTags || []
     };
-    let offset = 0;
+    let toOffset = 0;
     let fromOffset = 0;
 
     diffs.forEach(d => {
         let value = d[1];
         if (d[0] === DIFF_DELETE && value) {
             // Removed fragment: just add deleted content to result
-            if (suppressWhitespace(value, offset, state)) {
-                offset += 1;
+            if (suppressWhitespace(value, toOffset, state)) {
                 fromOffset += 1;
                 value = value.slice(1);
             }
@@ -65,29 +64,29 @@ function diffNatural(from: ParsedModel, to: ParsedModel, options: Options): Pars
             if (!shouldSkipDel(to.content, value, fromOffset, options)) {
                 // Edge case: put delete patch right after open tag or non-suppressed
                 // whitespace at the same location
-                moveTokensUntilPos(state, offset);
+                moveTokensUntilPos(state, toOffset);
                 const chunk = fragment(from, fromOffset, fromOffset + value.length, fragmentOpt);
-                state.push(chunk.toDiffToken('del', value, offset));
+                state.push(chunk.toDiffToken('del', value, toOffset));
             }
             fromOffset += value.length;
         } else if (d[0] === DIFF_INSERT) {
             // Inserted fragment: should insert open and close tags at proper
             // positions and maintain valid XML nesting
-            if (suppressWhitespace(value, offset, state)) {
-                offset += 1;
+            if (suppressWhitespace(value, toOffset, state)) {
+                toOffset += 1;
                 value = value.slice(1);
             }
 
-            if (shouldSkipIns(value, offset, state, options)) {
-                state.push(whitespace(offset, value));
+            if (shouldSkipIns(value, toOffset, state, options)) {
+                state.push(whitespace(toOffset, value));
             } else {
-                moveSlice(to, offset, offset + value.length, 'ins', state);
+                moveSlice(to, toOffset, toOffset + value.length, 'ins', state);
             }
 
-            offset += value.length;
+            toOffset += value.length;
         } else if (d[0] === DIFF_EQUAL) {
             // Unmodified content
-            offset += value.length;
+            toOffset += value.length;
             fromOffset += value.length;
 
             // Move all tokens of destination document to output result
@@ -96,11 +95,11 @@ function diffNatural(from: ParsedModel, to: ParsedModel, options: Options): Pars
                 // if (first.location > offset || (first.location === offset && first.type === ElementType.Open)) {
                 //     break;
                 // }
-                if (first.location > offset) {
+                if (first.location > toOffset) {
                     break;
                 }
 
-                if (first.location === offset && first.type === ElementType.Open) {
+                if (first.location === toOffset && first.type === ElementType.Open) {
                     // Handle edge case. In the following examples:
                     // – aa <div>bb cc</div>
                     // – aa bb <div>cc</div>
@@ -153,7 +152,6 @@ function diffInverted(from: ParsedModel, to: ParsedModel, options: Options): Par
         let value = d[1];
         if (d[0] === DIFF_DELETE && value) {
             if (suppressWhitespace(value, toOffset, state)) {
-                toOffset += 1;
                 fromOffset += 1;
                 value = value.slice(1);
             }
