@@ -56,8 +56,13 @@ function diffNatural(from: ParsedModel, to: ParsedModel, options: Options): Pars
         let value = d[1];
         if (d[0] === DIFF_DELETE && value) {
             // Removed fragment: just add deleted content to result
+            // In case of suppressed space, we should use external variable
+            // instead of `toOffset` to safely increment it.
+            // Otherwise locations won’t match
+            let pos = toOffset;
             if (suppressWhitespace(value, toOffset, state)) {
                 fromOffset += 1;
+                pos += 1;
                 value = value.slice(1);
             }
 
@@ -66,7 +71,7 @@ function diffNatural(from: ParsedModel, to: ParsedModel, options: Options): Pars
                 // whitespace at the same location
                 moveTokensUntilPos(state, toOffset);
                 const chunk = fragment(from, fromOffset, fromOffset + value.length, fragmentOpt);
-                state.push(chunk.toDiffToken('del', value, toOffset));
+                state.push(chunk.toDiffToken('del', value, pos));
             }
             fromOffset += value.length;
         } else if (d[0] === DIFF_INSERT) {
@@ -165,8 +170,13 @@ function diffInverted(from: ParsedModel, to: ParsedModel, options: Options): Par
         } else if (d[0] === DIFF_INSERT) {
             // Inserted fragment: should insert open and close tags at proper
             // positions and maintain valid XML nesting
+            // In case of suppressed space, we should use external variable
+            // instead of `toOffset` to safely increment it.
+            // Otherwise locations won’t match
+            let pos = fromOffset;
             if (suppressWhitespace(value, toOffset, state)) {
                 toOffset += 1;
+                pos += 1;
                 value = value.slice(1);
             }
 
@@ -176,7 +186,7 @@ function diffInverted(from: ParsedModel, to: ParsedModel, options: Options): Par
             // }
             moveTokensUntilPos(state, fromOffset);
             const chunk = fragment(to, toOffset, toOffset + value.length, fragmentOpt);
-            state.push(chunk.toDiffToken('ins', value, fromOffset));
+            state.push(chunk.toDiffToken('ins', value, pos));
 
             toOffset += value.length;
         } else if (d[0] === DIFF_EQUAL) {

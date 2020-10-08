@@ -252,6 +252,15 @@ describe('Diff documents', () => {
         const to = read('samples/suppress-space-to.xml');
 
         equal(
+            diff(
+                read('samples/suppress-space-from2.xml'),
+                read('samples/suppress-space-to2.xml'),
+                { wordPatches: true, preserveTags: ['line'], }
+            ),
+            read('fixtures/suppress-space2.xml')
+        );
+
+        equal(
             diff(from, to, { wordPatches: true }),
             read('samples/suppress-space-result.xml')
         );
