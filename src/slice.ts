@@ -101,6 +101,9 @@ export function slice(doc: ParsedModel, from: number, to: number, start?: number
     doc.tokens.slice(range[0], range[1]).forEach(token => {
         pushText(doc.content.slice(offset, token.location));
         offset = token.location;
+        if (token.offset) {
+            offset += token.offset;
+        }
 
         if (token.type === ElementType.Open) {
             stack.push([token, tokens.length]);
@@ -312,7 +315,7 @@ function getSliceRange(model: ParsedModel, from: number, to: number, start = fin
 
     while (tokens.length) {
         const token = last(tokens)!;
-        if (token.location && (token.type === ElementType.SelfClose || token.type === ElementTypeAddon.Space)) {
+        if (token.location === to && (token.type === ElementType.SelfClose || token.type === ElementTypeAddon.Space)) {
             tokens.pop();
         } else {
             break;
