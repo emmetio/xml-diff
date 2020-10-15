@@ -8,7 +8,7 @@ function read(filePath: string) {
 }
 
 describe('Inverted diff', () => {
-    it('debug', () => {
+    it.skip('debug', () => {
         const from = read('samples/doc-from.xml');
         const to = read('samples/doc-to.xml');
 

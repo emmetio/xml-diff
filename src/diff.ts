@@ -34,16 +34,6 @@ interface DiffState {
  * tokens in it. This model can be restored into a final XML document
  */
 export default function diff(from: ParsedModel, to: ParsedModel, options: Options = createOptions()): ParsedModel {
-    return options.invert
-        ? diffInverted(from, to, options)
-        : diffNatural(from, to, options);
-}
-
-/**
- * Performs “natural” diff between given documents: compares `from` and `to` documents
- * and returns `to` document with patched XML
- */
-function diffNatural(from: ParsedModel, to: ParsedModel, options: Options): ParsedModel {
     const diffs = getDiff(from, to, options);
     const state = createState(to.tokens);
     const fragmentOpt: FragmentOptions = {
@@ -51,6 +41,8 @@ function diffNatural(from: ParsedModel, to: ParsedModel, options: Options): Pars
     };
     let toOffset = 0;
     let fromOffset = 0;
+    const del = options.invert ? 'ins' : 'del';
+    const ins = options.invert ? 'del' : 'ins';
 
     diffs.forEach(d => {
         let value = d[1];
@@ -71,7 +63,7 @@ function diffNatural(from: ParsedModel, to: ParsedModel, options: Options): Pars
                 // whitespace at the same location
                 moveTokensUntilPos(state, toOffset);
                 const chunk = fragment(from, fromOffset, fromOffset + value.length, fragmentOpt);
-                state.push(chunk.toDiffToken('del', value, pos));
+                state.push(chunk.toDiffToken(del, value, pos));
             }
             fromOffset += value.length;
         } else if (d[0] === DIFF_INSERT) {
@@ -85,7 +77,7 @@ function diffNatural(from: ParsedModel, to: ParsedModel, options: Options): Pars
             if (shouldSkipIns(value, toOffset, state, options)) {
                 state.push(whitespace(toOffset, value));
             } else {
-                moveSlice(to, toOffset, toOffset + value.length, 'ins', state);
+                moveSlice(to, toOffset, toOffset + value.length, ins, state);
             }
 
             toOffset += value.length;
@@ -137,106 +129,6 @@ function diffNatural(from: ParsedModel, to: ParsedModel, options: Options): Pars
     return {
         tokens: state.output.concat(state.input.slice(state.ptr)),
         content: to.content
-    };
-}
-
-/**
- * Performs “inverted” diff between given documents: compares `from` and `to` documents
- * and returns `from` document with patched XML
- */
-function diffInverted(from: ParsedModel, to: ParsedModel, options: Options): ParsedModel {
-    const diffs = getDiff(from, to, options);
-    const state = createState(from.tokens);
-    const fragmentOpt: FragmentOptions = {
-        tags: options.preserveTags || []
-    };
-    let toOffset = 0;
-    let fromOffset = 0;
-
-    diffs.forEach(d => {
-        let value = d[1];
-        if (d[0] === DIFF_DELETE && value) {
-            if (suppressWhitespace(value, toOffset, state)) {
-                fromOffset += 1;
-                value = value.slice(1);
-            }
-
-            // if (!shouldSkipDel(to.content, value, fromOffset, options)) {
-            //     // Unlike in “natural” diff, in ”inverted” deleted fragment if a part
-            //     // of destination document
-            // }
-            moveSlice(from, fromOffset, fromOffset + value.length, 'del', state);
-            fromOffset += value.length;
-        } else if (d[0] === DIFF_INSERT) {
-            // Inserted fragment: should insert open and close tags at proper
-            // positions and maintain valid XML nesting
-            // In case of suppressed space, we should use external variable
-            // instead of `toOffset` to safely increment it.
-            // Otherwise locations won’t match
-            let pos = fromOffset;
-            if (suppressWhitespace(value, toOffset, state)) {
-                toOffset += 1;
-                pos += 1;
-                value = value.slice(1);
-            }
-
-            // if (shouldSkipIns(value, toOffset, state, options)) {
-            //     state.push(whitespace(toOffset, value));
-            // } else {
-            // }
-            moveTokensUntilPos(state, fromOffset);
-            const chunk = fragment(to, toOffset, toOffset + value.length, fragmentOpt);
-            state.push(chunk.toDiffToken('ins', value, pos));
-
-            toOffset += value.length;
-        } else if (d[0] === DIFF_EQUAL) {
-            // Unmodified content
-            toOffset += value.length;
-            fromOffset += value.length;
-
-            // Move all tokens of destination document to output result
-            while (state.hasNext()) {
-                const first = state.current();
-                // if (first.location > offset || (first.location === offset && first.type === ElementType.Open)) {
-                //     break;
-                // }
-                if (first.location > fromOffset) {
-                    break;
-                }
-
-                if (first.location === fromOffset && first.type === ElementType.Open) {
-                    // Handle edge case. In the following examples:
-                    // – aa <div>bb cc</div>
-                    // – aa bb <div>cc</div>
-                    // ...removing `bb ` results DELETE token with the same _text_
-                    // location, yet in first case it should be outside `<div>` and
-                    // in second case – inside `<div>`.
-                    // In case if token touches the edge of open tag, we should detect
-                    // if this token is inside or outside the same tag in `from`
-                    // document
-                    const { stack } = getElementStack(to.tokens, toOffset);
-                    let found = false;
-                    while (stack.length) {
-                        if (stack.pop()!.name === first.name) {
-                            found = true;
-                            break;
-                        }
-                    }
-
-                    if (!found) {
-                        break;
-                    }
-                }
-
-                state.push(first);
-                state.ptr++;
-            }
-        }
-    });
-
-    return {
-        tokens: state.output.concat(state.input.slice(state.ptr)),
-        content: from.content
     };
 }
 
