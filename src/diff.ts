@@ -4,7 +4,7 @@ import { ParsedModel, Token, ElementTypeAddon } from './types';
 import createOptions, { Options } from './options';
 import wordBounds from './word-bounds';
 import { fragment, FragmentOptions, slice } from './slice';
-import { getElementStack, isTagToken, isType, isWhitespace, last } from './utils';
+import { closest, getElementStack, isTagToken, isType, isWhitespace, last } from './utils';
 
 interface DiffState {
     /** Pointer to current `input` token  */
@@ -22,6 +22,9 @@ interface DiffState {
     /** Pushes given token into output */
     push(token: Token): void;
 
+    /** Same as `push` but also increments element pointer */
+    pushNext(token: Token): void;
+
     /** Returns current input token */
     current(): Token;
 
@@ -37,7 +40,7 @@ export default function diff(from: ParsedModel, to: ParsedModel, options: Option
     const diffs = getDiff(from, to, options);
     const state = createState(to.tokens);
     const fragmentOpt: FragmentOptions = {
-        tags: options.preserveTags || []
+        tags: options.preserveTags
     };
     let toOffset = 0;
     let fromOffset = 0;
@@ -61,7 +64,17 @@ export default function diff(from: ParsedModel, to: ParsedModel, options: Option
             if (!shouldSkipDel(to.content, value, fromOffset, options)) {
                 // Edge case: put delete patch right after open tag or non-suppressed
                 // whitespace at the same location
-                moveTokensUntilPos(state, toOffset);
+                // TODO не оставлять открывающий элемент `<line>`, если он находится
+                // в начальной позиции патча
+                const fromStack = getElementStack(from.tokens, fromOffset);
+                fragmentOpt.stackData = fromStack;
+
+                moveTokensUntilPos(state, toOffset, fromStack.stack);
+
+                if (options.preserveXml) {
+                    fragmentOpt.receiverStack = getElementStack(to.tokens, toOffset).stack;
+                }
+
                 const chunk = fragment(from, fromOffset, fromOffset + value.length, fragmentOpt);
                 state.push(chunk.toDiffToken(del, value, pos));
             }
@@ -151,12 +164,33 @@ function moveSlice(model: ParsedModel, from: number, to: number, tagName: string
     }
 }
 
-function moveTokensUntilPos(state: DiffState, textPos: number) {
+function moveTokensUntilPos(state: DiffState, textPos: number, stack: Token[]) {
+    let closestIx = -1;
+
     while (state.hasNext()) {
         const t = state.current();
-        if (t.location === textPos && (isType(t, ElementType.Open) || (isType(t, ElementTypeAddon.Space) && !t.offset))) {
-            state.push(t);
-            state.ptr++;
+        if (t.location < textPos) {
+            state.pushNext(t);
+        } else if (t.location === textPos) {
+            if (t.type === ElementType.Open) {
+                // Handle edge case for unformatted XML: move open tags at the edge
+                // of range only if it shares common structure with external document.
+                // For example:
+                // Doc A: `<doc><a>A foo</a></doc>`
+                // Doc B: `<doc><b>B foo</b></doc>`
+                // The diff is at location 0, which includes `<doc>` and `<a>` tags
+                // of A document. In this case, we should move `<doc>` element to output
+                // since B also contains this element, but leave out `<a>` element
+                const ix = closest(stack, t.name);
+                if (ix > closestIx) {
+                    state.pushNext(t);
+                    closestIx = ix;
+                } else {
+                    break;
+                }
+            } else if (t.type === ElementTypeAddon.Space && !t.offset) {
+                state.pushNext(t);
+            }
         } else {
             break;
         }
@@ -267,6 +301,10 @@ function createState(input: Token[]): DiffState {
         output: [],
         push(token) {
             this.output.push(token);
+        },
+        pushNext(token) {
+            this.push(token);
+            this.ptr++;
         },
         current() {
             return input[this.ptr];

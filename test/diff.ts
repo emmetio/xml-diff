@@ -14,15 +14,23 @@ describe('Diff documents', () => {
                 '111 222 <em>333</em> 555',
                 '111 555'
             ),
-            '111 <del>222 333 </del>555'
+            '111 <del>222 <em>333</em> </del>555'
         );
 
         equal(
             diff(
-                '111 222 <em>333</em> 555',
-                '111 555'
+                '111 <em>222 333</em> 444 555',
+                '111 <em>333</em> 444 555'
             ),
-            '111 <del>222 333 </del>555'
+            '111 <em><del>222 </del>333</em> 444 555'
+        );
+
+        equal(
+            diff(
+                '111 <em>222 333</em> 444 555',
+                '111 <em>333</em> 555'
+            ),
+            '111 <em><del>222 333 444</del><ins>333</ins></em> 555'
         );
 
         equal(
@@ -30,7 +38,7 @@ describe('Diff documents', () => {
                 '111 222 <em>333 444</em> 555',
                 '111 <em>444</em> 555'
             ),
-            '111 <em><del>222 333 </del>444</em> 555'
+            '111 <del>222 <em>333 </em></del><em>444</em> 555'
         );
 
         equal(
@@ -38,7 +46,7 @@ describe('Diff documents', () => {
                 '111 <em>222 333</em> 444 555',
                 '111 <em>222</em> 555'
             ),
-            '111 <em>222</em> <del>333 444 </del>555'
+            '111 <em>222</em> <del><em>333</em> 444 </del>555'
         );
     });
 
@@ -56,7 +64,7 @@ describe('Diff documents', () => {
                 '<a>111 </a>222 <b>333</b><c> 444 555</c>',
                 '<a>111 </a><b>333</b><c> 444 555</c>',
             ),
-            '<a>111 </a><b><del>222 </del>333</b><c> 444 555</c>'
+            '<a>111 </a><del>222 </del><b>333</b><c> 444 555</c>'
         );
     });
 
@@ -133,7 +141,7 @@ describe('Diff documents', () => {
                 '§ 301. Public Printer: appointment',
                 '§ 301. <em>Director of the Government</em> Publishing Office: appointment'
             ),
-            '§ 301. <em><del>Public Printer</del><ins>Director of the Government</ins></em><ins> Publishing Office</ins>: appointment'
+            '§ 301. <del>Public Printer</del><ins><em>Director of the Government</em> Publishing Office</ins>: appointment'
         );
 
         equal(
@@ -281,10 +289,18 @@ describe('Diff documents', () => {
     });
 
     it.skip('debug', () => {
-        const from = read('samples/line-nums-before.xml');
-        const to = read('samples/line-nums-after.xml');
+        equal(
+            diff(
+                '<doc>\n\t<section>A fundamental objective of NASA</section>\n</doc>',
+                '<doc>\n\t<section>One <a>of</a> the fundamental objectives of NASA</section>\n</doc>',
+                { compact: true }
+            ),
+            '<doc>\n\t<section><del>A</del><ins>One <a>of</a> the</ins> fundamental objective<ins>s</ins> of NASA</section>\n</doc>'
+        );
+        // const from = read('samples/line-nums-before.xml');
+        // const to = read('samples/line-nums-after.xml');
 
-        console.log(diff(from, to, { preserveTags: ['line'] }));
+        // console.log(diff(from, to, { preserveTags: ['line'] }));
 
         // equal(
         //     diff(from, to, { wordPatches: true }),

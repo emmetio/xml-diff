@@ -72,6 +72,13 @@ export interface Options extends ScannerOptions {
     preserveTags: string[];
 
     /**
+     * If enabled, tries to preserve XML structure of external fragment, inserted
+     * as `delete` patch. Will try to find common ancestor element for inserted
+     * fragment and insertion point and outputs elements _below_ common ancestor.
+     */
+    preserveXml: boolean;
+
+    /**
      * Update diff patches so they include whole words instead of distinct parts
      * of words. For example, running diff on `Experimental` and `Established`
      * would produce the following patches by default:
@@ -106,7 +113,8 @@ const defaultOptions: Partial<Options> = {
     allTokens: true,
     baseStart: 0,
     replaceThreshold: 0,
-    preserveTags: [],
+    // preserveTags: [],
+    preserveXml: true,
     inlineElements: [
         'a', 'abbr', 'acronym', 'applet', 'b', 'basefont', 'bdo',
         'big', 'br', 'button', 'cite', 'code', 'del', 'dfn', 'em', 'font', 'i',
