@@ -83,6 +83,21 @@ export interface Options extends ScannerOptions {
      * E.g. it will be updated to include full word chunks
      */
     wordPatches?: boolean;
+
+    /**
+     * Generate inverted diff: perform `from` → `to` document diff but apply patches
+     * to `from` document
+     */
+    invert?: boolean;
+
+    /**
+     * A ratio of changed to unchanged text to consider texts as completely different
+     * thus marked as fully replaced content. Instead of providing a set of
+     * inserted/deleted fragments, it will mark text as replaced, e.g. previous
+     * text completely removed and new text as inserted.
+     * Values vary from 0 to 1, but actual threshold might be larger than 1
+     */
+    replaceThreshold?: number;
 }
 
 const defaultOptions: Partial<Options> = {
@@ -90,6 +105,7 @@ const defaultOptions: Partial<Options> = {
     normalizeSpace: true,
     allTokens: true,
     baseStart: 0,
+    replaceThreshold: 0,
     preserveTags: [],
     inlineElements: [
         'a', 'abbr', 'acronym', 'applet', 'b', 'basefont', 'bdo',

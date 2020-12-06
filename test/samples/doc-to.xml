@@ -1,0 +1,11 @@
+<lawDoc xmlns="http://xml.house.gov/schemas/uslm/1.0"
+    xmlns:dc="http://purl.org/dc/elements/1.1/"
+    xmlns:dcterms="http://purl.org/dc/terms/"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://xml.house.gov/schemas/uslm/1.0 USLM-1.0.18.xsd" xml:lang="en">
+    <section id="H3B72681B43F24EBF86DA466346B1AFB3" class="bill-dtd-OLC" identifier="/s1">
+        <num value="1">Section 1.</num>
+        <heading>Short title</heading>
+        <content class="indent0">This Act may be cited as the <quotedContent>'' <shortTitle>Fairness in Class Action Litigation and <em>Furthering Asbestos Claim Transparency Act</em> of 2015</shortTitle>''</quotedContent>
+        </content>
+    </section>
+</lawDoc>

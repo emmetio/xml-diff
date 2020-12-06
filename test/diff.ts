@@ -30,7 +30,7 @@ describe('Diff documents', () => {
                 '111 222 <em>333 444</em> 555',
                 '111 <em>444</em> 555'
             ),
-            '111 <del>222 333 </del><em>444</em> 555'
+            '111 <em><del>222 333 </del>444</em> 555'
         );
 
         equal(
@@ -56,7 +56,7 @@ describe('Diff documents', () => {
                 '<a>111 </a>222 <b>333</b><c> 444 555</c>',
                 '<a>111 </a><b>333</b><c> 444 555</c>',
             ),
-            '<a>111 </a><del>222 </del><b>333</b><c> 444 555</c>'
+            '<a>111 </a><b><del>222 </del>333</b><c> 444 555</c>'
         );
     });
 
@@ -74,7 +74,7 @@ describe('Diff documents', () => {
                 '111 333',
                 '111 <em>222</em> 333'
             ),
-            '111 <em><ins>222</ins></em><ins> </ins>333'
+            '111 <ins><em>222</em> </ins>333'
         );
 
         equal(
@@ -98,7 +98,7 @@ describe('Diff documents', () => {
                 '111 222',
                 '111 333 <em>444</em> 555 222'
             ),
-            '111 <ins>333 </ins><em><ins>444</ins></em><ins> 555 </ins>222'
+            '111 <ins>333 <em>444</em> 555 </ins>222'
         );
 
         equal(
@@ -133,7 +133,7 @@ describe('Diff documents', () => {
                 '§ 301. Public Printer: appointment',
                 '§ 301. <em>Director of the Government</em> Publishing Office: appointment'
             ),
-            '§ 301. <del>Public Printer</del><em><ins>Director of the Government</ins></em><ins> Publishing Office</ins>: appointment'
+            '§ 301. <em><del>Public Printer</del><ins>Director of the Government</ins></em><ins> Publishing Office</ins>: appointment'
         );
 
         equal(
@@ -183,13 +183,112 @@ describe('Diff documents', () => {
         );
     });
 
+    it('diff on element edge', () => {
+        equal(
+            diff(
+                '<p>111</p>',
+                '<p>222 111</p>'
+            ),
+            '<p><ins>222 </ins>111</p>'
+        );
+
+        equal(
+            diff(
+                '<p>test 1</p>',
+                '<p>hello test 2</p>'
+            ),
+            '<p><ins>hello </ins>test <del>1</del><ins>2</ins></p>'
+        );
+
+        equal(
+            diff(
+                '<content>Section <em>content</em> 1</content>',
+                '<content>Section <em>word</em> 1</content>',
+            ),
+            '<content>Section <em><del>content</del><ins>word</ins></em> 1</content>'
+        );
+
+        equal(
+            diff(
+                '<doc><section>A fundamental objective of NASA</section></doc>',
+                '<doc><section>One <a>of</a> the fundamental objectives of NASA</section></doc>',
+                { compact: true }
+            ),
+            '<doc><section><del>A</del><ins>One <a>of</a> the</ins> fundamental objective<ins>s</ins> of NASA</section></doc>'
+        );
+
+        equal(
+            diff(
+                '<doc>\n\t<section>A fundamental objective of NASA</section>\n</doc>',
+                '<doc>\n\t<section>One <a>of</a> the fundamental objectives of NASA</section>\n</doc>',
+                { compact: true }
+            ),
+            '<doc>\n\t<section><del>A</del><ins>One <a>of</a> the</ins> fundamental objective<ins>s</ins> of NASA</section>\n</doc>'
+        );
+    });
+
+    it('compact whitespace', () => {
+        equal(
+            diff(
+                '<p>test1</p>',
+                '<p>test 1</p>',
+                { compact: true }
+            ),
+            '<p>test<ins> </ins>1</p>'
+        );
+
+        equal(
+            diff(
+                '<p>test1</p><p>test2</p>',
+                '<p>test1</p>\n\n\t\t\t<p>test2</p>',
+                { compact: true }
+            ),
+            '<p>test1</p>\n\n\t\t\t<p>test2</p>'
+        );
+    });
+
     it('suppress whitespace', () => {
         const from = read('samples/suppress-space-from.xml');
         const to = read('samples/suppress-space-to.xml');
 
         equal(
+            diff(
+                read('samples/suppress-space-from2.xml'),
+                read('samples/suppress-space-to2.xml'),
+                { wordPatches: true, preserveTags: ['line'], }
+            ),
+            read('fixtures/suppress-space2.xml')
+        );
+
+        equal(
             diff(from, to, { wordPatches: true }),
             read('samples/suppress-space-result.xml')
         );
+
+        equal(
+            diff(
+                '<p>foo (\n\t\t\t<span>bar</span>) baz</p>',
+                '<p>foo (bar) baz</p>',
+                { compact: true }
+            ),
+            '<p>foo (<del>\n\t\t\t</del>bar) baz</p>'
+        );
+    });
+
+    it('mark as replaced', () => {
+        equal(diff('<p>foo1 baz</p>', '<p>bar1 baz</p>'), '<p><del>foo</del><ins>bar</ins>1 baz</p>');
+        equal(diff('<p>foo1 baz</p>', '<p>bar1 baz</p>', { replaceThreshold: 0.4 }), '<p><del>foo1 baz</del><ins>bar1 baz</ins></p>');
+    });
+
+    it.skip('debug', () => {
+        const from = read('samples/line-nums-before.xml');
+        const to = read('samples/line-nums-after.xml');
+
+        console.log(diff(from, to, { preserveTags: ['line'] }));
+
+        // equal(
+        //     diff(from, to, { wordPatches: true }),
+        //     read('samples/suppress-space-result.xml')
+        // );
     });
 });
