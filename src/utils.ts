@@ -1,6 +1,11 @@
 import { ElementType } from '@emmetio/html-matcher';
 import { ElementTypeAddon, Token, TokenType } from './types';
 
+export interface StackData {
+    stack: Token[];
+    start: number;
+}
+
 /**
  * Check if given string is whitespace-only
  */
@@ -27,7 +32,7 @@ export function isTagToken(token: Token): boolean {
 /**
  * Collects element stack for given text location
  */
-export function getElementStack(tokens: Token[], pos: number): { stack: Token[], start: number } {
+export function getElementStack(tokens: Token[], pos: number): StackData {
     const stack: Token[] = [];
     let start = 0;
 
@@ -69,4 +74,17 @@ export function diffToken(name: string, value: string, location: number, text = 
 
 export function isDiffToken(token: Token): boolean {
     return token.type === ElementTypeAddon.Diff;
+}
+
+/**
+ * Finds closest index of of element with given name in `elems` list.
+ * Returns `-1` if element is not found
+ */
+export function closest(elems: Token[], name: string): number {
+    let i = elems.length - 1;
+    while (i >= 0 && elems[i].name !== name) {
+        i--;
+    }
+
+    return i;
 }

@@ -1,6 +1,6 @@
 import { ElementType } from '@emmetio/html-matcher';
 import { ElementTypeAddon, ParsedModel, Token } from './types';
-import { diffToken, getElementStack, last } from './utils';
+import { closest, diffToken, getElementStack, last, StackData } from './utils';
 
 export type SliceToken = string | Token | SliceMark;
 export type SliceRange = [number, number];
@@ -17,6 +17,14 @@ export interface SliceMark {
 export interface FragmentOptions {
     /** List of allowed tags in extracted fragment, including parents (if enabled) */
     tags?: string[];
+    /**
+     * Receiving document’s element stack, e.g. XML structure where fragment will
+     * be inserted. If specified, finds closest common ancestor of fragment’s stack
+     * and output all nested elements of this ancestor.
+     */
+    receiverStack?: Token[];
+
+    stackData?: StackData;
 }
 
 export class SliceResult {
@@ -139,7 +147,7 @@ export function slice(doc: ParsedModel, from: number, to: number, start?: number
 }
 
 export function fragment(doc: ParsedModel, from: number, to: number, options: FragmentOptions = {}) {
-    const { stack, start } = getElementStack(doc.tokens, from);
+    const { stack, start } = options.stackData || getElementStack(doc.tokens, from);
 
     let offset = from;
     let i = start;
@@ -156,6 +164,17 @@ export function fragment(doc: ParsedModel, from: number, to: number, options: Fr
         }
     };
 
+    if (options.receiverStack) {
+        const ci = findCommonAncestor(stack, options.receiverStack);
+        if (ci !== -1) {
+            // Common ancestor found: output all elements below it
+            stack.splice(0, ci + 1);
+        } else {
+            // No common ancestor: at least remove root node
+            stack.unshift();
+        }
+    }
+
     stack.forEach(push);
 
     // Walk up to the end of text fragment and check inner structure
@@ -167,16 +186,13 @@ export function fragment(doc: ParsedModel, from: number, to: number, options: Fr
 
         end = i++;
 
+        // Insert plain text before given token
         push(doc.content.slice(offset, token.location));
         offset = token.location + (token.offset || 0);
 
-        if (token.type === ElementType.Open) {
-            stack.push(token);
-        } else if (token.type === ElementType.Close) {
-            stack.pop();
+        if (shouldOutput(stack, token, to)) {
+            push(token);
         }
-
-        push(token);
     }
 
     push(doc.content.slice(offset, to));
@@ -323,4 +339,44 @@ function getSliceRange(model: ParsedModel, from: number, to: number, start = fin
     }
 
     return [start, start + tokens.length];
+}
+
+/**
+ * Returns index in `curStack` of closest common ancestor for two element stacks.
+ * Returns `-1` if there’s no common ancestor
+ */
+function findCommonAncestor(curStack: Token[], receiverStack: Token[]): number {
+    let i = curStack.length - 1;
+    while (i >= 0) {
+        if (closest(receiverStack, curStack[i].name) !== -1) {
+            return i;
+        }
+        i--;
+    }
+
+    return i;
+}
+
+/**
+ * Check if given token can be outputted. Specifically, checks if closing element
+ * token has valid open element token in stack (required if element open element
+ * was omitted by common ancestor).
+ */
+function shouldOutput(stack: Token[], token: Token, endPos: number): boolean {
+    if (token.type === ElementType.Close && (!stack.length || last(stack)!.name !== token.name)) {
+        return false;
+    }
+
+    if (token.type === ElementType.Open && token.location === endPos) {
+        // Do not output open elements at the end of fragment range
+        return false;
+    }
+
+    if (token.type === ElementType.Open) {
+        stack.push(token);
+    } else if (token.type === ElementType.Close) {
+        stack.pop();
+    }
+
+    return true;
 }
