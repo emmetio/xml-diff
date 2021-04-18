@@ -147,8 +147,11 @@ export function slice(doc: ParsedModel, from: number, to: number, start?: number
 }
 
 export function fragment(doc: ParsedModel, from: number, to: number, options: FragmentOptions = {}) {
-    const { stack, start } = options.stackData || getElementStack(doc.tokens, from);
+    const stackData = options.stackData || getElementStack(doc.tokens, from);
+    const stack = [...stackData.stack];
+    const start = stackData.start;
 
+    let tagCount = 0;
     let offset = from;
     let i = start;
     let end = start;
@@ -182,6 +185,17 @@ export function fragment(doc: ParsedModel, from: number, to: number, options: Fr
         const token = doc.tokens[i];
         if (token.location > to) {
             break;
+        }
+
+        if (token.type === ElementType.Open) {
+            tagCount++;
+        } else if (token.type === ElementType.Close) {
+            if (tagCount === 0 && token.location === to) {
+                // We’ve reached the end of nearest enclosing tag for fragment
+                break;
+            } else if (tagCount > 0) {
+                tagCount--;
+            }
         }
 
         end = i++;
@@ -363,6 +377,12 @@ function findCommonAncestor(curStack: Token[], receiverStack: Token[]): number {
  * was omitted by common ancestor).
  */
 function shouldOutput(stack: Token[], token: Token, endPos: number): boolean {
+    if (isIgnoreToken(token)) {
+        // NB: hardcode from xml-diff consumer: do not output comment with `#ignore`
+        // name: it’s a special case for tokens that should be ignored during reconstruction
+        return false;
+    }
+
     if (token.type === ElementType.Close && (!stack.length || last(stack)!.name !== token.name)) {
         return false;
     }
@@ -379,4 +399,10 @@ function shouldOutput(stack: Token[], token: Token, endPos: number): boolean {
     }
 
     return true;
+}
+
+function isIgnoreToken(token: Token): boolean {
+    // NB: hardcode from xml-diff consumer: do not output comment with `#ignore`
+    // name: it’s a special case for tokens that should be ignored during reconstruction
+    return token.type === ElementType.Comment && token.name === '#ignore';
 }

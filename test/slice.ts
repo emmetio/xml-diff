@@ -83,7 +83,7 @@ describe('XML Slice', () => {
 
         s = fragment(doc, 4, 15);
         equal(s.toString('del'), '<del><div><a><c>foo <b>bar</b> baz</c></a></div></del>');
-        deepEqual(s.range, [3, 6]);
+        deepEqual(s.range, [3, 4]);
     });
 
     it('fragment with tag filter', () => {
