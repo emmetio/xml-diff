@@ -87,9 +87,7 @@ export default function diff(from: ParsedModel, to: ParsedModel, options: Option
                 value = value.slice(1);
             }
 
-            if (shouldSkipIns(value, toOffset, state, options)) {
-                state.push(whitespace(toOffset, value));
-            } else {
+            if (!shouldSkipIns(value, toOffset, state, options)) {
                 moveSlice(to, toOffset, toOffset + value.length, ins, state);
             }
 
@@ -283,15 +281,6 @@ function getDiff(from: ParsedModel, to: ParsedModel, options: Options): Diff[] {
     }
 
     return diffs;
-}
-
-function whitespace(location: number, value: string): Token {
-    return {
-        name: '#whitespace',
-        type: ElementTypeAddon.Space,
-        value,
-        location,
-    };
 }
 
 function createState(input: Token[]): DiffState {
