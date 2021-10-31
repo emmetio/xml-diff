@@ -17,17 +17,17 @@
   "author": "Sergey Chikuyonok <serge.che@gmail.com>",
   "license": "MIT",
   "devDependencies": {
+    "@rollup/plugin-commonjs": "^21.0.1",
+    "@rollup/plugin-node-resolve": "^13.0.6",
     "@types/diff-match-patch": "^1.0.32",
-    "@types/mocha": "^5.2.7",
-    "@types/node": "^12.12.47",
-    "mocha": "^6.2.3",
-    "rollup": "^1.32.1",
-    "rollup-plugin-commonjs": "^10.1.0",
-    "rollup-plugin-node-resolve": "^5.2.0",
-    "rollup-plugin-typescript2": "^0.25.3",
-    "ts-node": "^8.10.2",
+    "@types/mocha": "^9.0.0",
+    "@types/node": "^14.0.0",
+    "mocha": "^9.1.3",
+    "rollup": "^2.58.3",
+    "rollup-plugin-typescript2": "^0.30.0",
+    "ts-node": "^10.4.0",
     "tslint": "^5.20.1",
-    "typescript": "^3.9.5"
+    "typescript": "^4.4.4"
   },
   "dependencies": {
     "@emmetio/html-matcher": "^1.3.0",
