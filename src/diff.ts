@@ -276,6 +276,10 @@ function getDiff(from: ParsedModel, to: ParsedModel, options: Options): Diff[] {
         ];
     }
 
+    if (options.skipSpace) {
+        diffs = skipSpace(diffs);
+    }
+
     if (options.wordPatches) {
         diffs = wordBounds(diffs);
     }
@@ -325,4 +329,37 @@ function getChangeThreshold(diffs: Diff[]): number {
     }
 
     return changed / unchanged;
+}
+
+function skipSpace(diffs: Diff[]): Diff[] {
+    const result: Diff[] = [];
+    let prev: Diff;
+
+    diffs.forEach(chunk => {
+        let canJoin = false;
+        if (chunk[0] === DIFF_EQUAL) {
+            // If previous chunk is also a text (whitespace), join it with previous
+            canJoin = true;
+        } else if (isSpace(chunk[1])) {
+            if (chunk[0] === DIFF_DELETE) {
+                // Skip deleted space chunk
+                return;
+            }
+
+            chunk[0] = DIFF_EQUAL;
+            canJoin = true;
+        }
+
+        if (canJoin && prev && prev[0] === DIFF_EQUAL) {
+            prev[1] += chunk[1];
+        } else {
+            result.push(prev = chunk);
+        }
+    });
+
+    return result;
+}
+
+function isSpace(text: string): boolean {
+    return /^\s+$/.test(text);
 }

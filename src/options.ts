@@ -53,6 +53,9 @@ export interface Options extends ScannerOptions {
     /** Normalize whitespace when extracting content from XML */
     normalizeSpace?: boolean;
 
+    /** Skip space-only diff chunks */
+    skipSpace?: boolean;
+
     /** Reduce ”noise” by removing meaningless whitespace patches */
     compact: boolean;
 

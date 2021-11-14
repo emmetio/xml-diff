@@ -288,6 +288,15 @@ describe('Diff documents', () => {
         equal(diff('<p>foo1 baz</p>', '<p>bar1 baz</p>', { replaceThreshold: 0.4 }), '<p><del>foo1 baz</del><ins>bar1 baz</ins></p>');
     });
 
+    it('skip space patches', () => {
+        const opt = { skipSpace: true };
+        equal(diff('<p>foo bar</p>', '<p>foobar</p>'), '<p>foo<del> </del>bar</p>');
+        equal(diff('<p>foo bar</p>', '<p>foobar</p>', opt), '<p>foobar</p>');
+
+        equal(diff('<p>foobar</p>', '<p>foo bar</p>'), '<p>foo<ins> </ins>bar</p>');
+        equal(diff('<p>foobar</p>', '<p>foo bar</p>', opt), '<p>foo bar</p>');
+    });
+
     it.skip('debug', () => {
         equal(
             diff(
