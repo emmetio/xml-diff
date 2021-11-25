@@ -68,12 +68,15 @@ export class SliceResult {
         for (const t of this.tokens) {
             if (typeof t !== 'string') {
                 if (isSliceMark(t)) {
-                    result.push({
-                        type: ElementTypeAddon.Diff,
-                        location: t.location,
-                        name: opTag,
-                        value: t.close ? `</${opTag}>` : `<${opTag}>`
-                    });
+                    if (opTag) {
+                        // NB: allow empty name to skip operation tag
+                        result.push({
+                            type: ElementTypeAddon.Diff,
+                            location: t.location,
+                            name: opTag,
+                            value: t.close ? `</${opTag}>` : `<${opTag}>`
+                        });
+                    }
                 } else {
                     result.push(t);
                 }

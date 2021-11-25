@@ -88,7 +88,7 @@ export default function diff(from: ParsedModel, to: ParsedModel, options: Option
             }
 
             if (!shouldSkipIns(value, toOffset, state, options)) {
-                moveSlice(to, toOffset, toOffset + value.length, ins, state);
+                moveSlice(to, toOffset, toOffset + value.length, options.skipSpace ? '' : ins, state);
             }
 
             toOffset += value.length;
@@ -216,7 +216,12 @@ function shouldSkipIns(value: string, pos: number, state: DiffState, options: Op
  * Check if given DELETE patch should be omitted
  */
 function shouldSkipDel(content: string, value: string, pos: number, options: Options): boolean {
-    if (options.compact && isWhitespace(value)) {
+    const isSpaceDel = isWhitespace(value);
+    if (options.skipSpace && isSpaceDel) {
+        return true;
+    }
+
+    if (options.compact && isSpaceDel) {
         if (isWhitespace(content.charAt(pos - 1)) || isWhitespace(content.charAt(pos))) {
             // There’s whitespace before or after deleted whitespace token
             return true;
@@ -276,10 +281,6 @@ function getDiff(from: ParsedModel, to: ParsedModel, options: Options): Diff[] {
         ];
     }
 
-    if (options.skipSpace) {
-        diffs = skipSpace(diffs);
-    }
-
     if (options.wordPatches) {
         diffs = wordBounds(diffs);
     }
@@ -329,37 +330,4 @@ function getChangeThreshold(diffs: Diff[]): number {
     }
 
     return changed / unchanged;
-}
-
-function skipSpace(diffs: Diff[]): Diff[] {
-    const result: Diff[] = [];
-    let prev: Diff;
-
-    diffs.forEach(chunk => {
-        let canJoin = false;
-        if (chunk[0] === DIFF_EQUAL) {
-            // If previous chunk is also a text (whitespace), join it with previous
-            canJoin = true;
-        } else if (isSpace(chunk[1])) {
-            if (chunk[0] === DIFF_DELETE) {
-                // Skip deleted space chunk
-                return;
-            }
-
-            chunk[0] = DIFF_EQUAL;
-            canJoin = true;
-        }
-
-        if (canJoin && prev && prev[0] === DIFF_EQUAL) {
-            prev[1] += chunk[1];
-        } else {
-            result.push(prev = chunk);
-        }
-    });
-
-    return result;
-}
-
-function isSpace(text: string): boolean {
-    return /^\s+$/.test(text);
 }
