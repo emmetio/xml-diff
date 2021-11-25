@@ -296,7 +296,7 @@ describe('Diff documents', () => {
         equal(diff('<p>foobar</p>', '<p>foo bar</p>'), '<p>foo<ins> </ins>bar</p>');
         equal(diff('<p>foobar</p>', '<p>foo bar</p>', opt), '<p>foo bar</p>');
 
-        equal(diff('<p>foo</p><p>bar</p><p>baz</p>', '<p>foo</p> <p>bar</p> <p>baz</p>', opt), '<p>foo</p> <p>bar</p> <p>baz</p>');
+        equal(diff('<p>foo</p><p>bar</p><p>baz</p>', '<p>foo</p> <p>bar</p> <p>bam</p>', opt), '<p>foo</p> <p>bar</p> <p>ba<del>z</del><ins>m</ins></p>');
     });
 
     it.skip('debug', () => {

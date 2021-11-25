@@ -88,7 +88,8 @@ export default function diff(from: ParsedModel, to: ParsedModel, options: Option
             }
 
             if (!shouldSkipIns(value, toOffset, state, options)) {
-                moveSlice(to, toOffset, toOffset + value.length, options.skipSpace ? '' : ins, state);
+                const tagName = options.skipSpace && isWhitespace(value) ? '' : ins;
+                moveSlice(to, toOffset, toOffset + value.length, tagName, state);
             }
 
             toOffset += value.length;
