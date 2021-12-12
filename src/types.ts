@@ -3,7 +3,13 @@ import { ElementType } from '@emmetio/html-matcher';
 export interface ParsedModel {
     tokens: Token[];
     content: string;
-    similarity?: number;
+    stats?: DiffStats;
+}
+
+export interface DiffStats {
+    ins: number;
+    del: number;
+    eq: number;
 }
 
 export const enum ElementTypeAddon {

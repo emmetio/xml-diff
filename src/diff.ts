@@ -46,7 +46,7 @@ export default function diff(from: ParsedModel, to: ParsedModel, options: Option
     let fromOffset = 0;
     const del = options.invert ? 'ins' : 'del';
     const ins = options.invert ? 'del' : 'ins';
-    const updateStats = {
+    const diffStats = {
         ins: 0,
         del: 0,
         eq: 0
@@ -83,7 +83,7 @@ export default function diff(from: ParsedModel, to: ParsedModel, options: Option
                 const chunk = fragment(from, fromOffset, fromOffset + value.length, fragmentOpt);
                 state.push(chunk.toDiffToken(del, value, pos));
 
-                updateStats.del += value.length;
+                diffStats.del += value.length;
             }
             fromOffset += value.length;
         } else if (d[0] === DIFF_INSERT) {
@@ -97,7 +97,7 @@ export default function diff(from: ParsedModel, to: ParsedModel, options: Option
             if (!shouldSkipIns(value, toOffset, state, options)) {
                 const tagName = options.skipSpace && isWhitespace(value) ? '' : ins;
                 moveSlice(to, toOffset, toOffset + value.length, tagName, state);
-                updateStats.ins += value.length;
+                diffStats.ins += value.length;
             }
 
             toOffset += value.length;
@@ -105,7 +105,7 @@ export default function diff(from: ParsedModel, to: ParsedModel, options: Option
             // Unmodified content
             toOffset += value.length;
             fromOffset += value.length;
-            updateStats.eq += value.length;
+            diffStats.eq += value.length;
 
             // Move all tokens of destination document to output result
             while (state.hasNext()) {
@@ -150,7 +150,7 @@ export default function diff(from: ParsedModel, to: ParsedModel, options: Option
     return {
         tokens: state.output.concat(state.input.slice(state.ptr)),
         content: to.content,
-        similarity: updateStats.eq / (updateStats.ins + updateStats.del + updateStats.eq)
+        stats: diffStats
     };
 }
 
