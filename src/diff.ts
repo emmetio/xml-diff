@@ -199,6 +199,8 @@ function moveTokensUntilPos(state: DiffState, textPos: number, stack: Token[]) {
                 }
             } else if (t.type === ElementTypeAddon.Space && !t.offset) {
                 state.pushNext(t);
+            } else {
+                break;
             }
         } else {
             break;
