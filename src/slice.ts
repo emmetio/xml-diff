@@ -63,8 +63,9 @@ export class SliceResult {
     /**
      * Returns list of tag tokens
      */
-    toTokens(opTag: string): Token[] {
+    toTokens(opTag: string, attributes?: string): Token[] {
         const result: Token[] = [];
+        const attrs = attributes ? ` ${attributes}` : '';
         for (const t of this.tokens) {
             if (typeof t !== 'string') {
                 if (isSliceMark(t)) {
@@ -74,7 +75,7 @@ export class SliceResult {
                             type: ElementTypeAddon.Diff,
                             location: t.location,
                             name: opTag,
-                            value: t.close ? `</${opTag}>` : `<${opTag}>`
+                            value: t.close ? `</${opTag}>` : `<${opTag}${attrs}>`
                         });
                     }
                 } else {
