@@ -237,15 +237,15 @@ export function sliceMark(location: number, close = false): SliceMark {
     };
 }
 
-export function isSliceMark(value: any): value is SliceMark {
-    return value && value.type === 'slice';
+export function isSliceMark(value: SliceToken | undefined): value is SliceMark {
+    return !!value && typeof value !== 'string' && value.type === 'slice';
 }
 
-export function isSliceMarkOpen(value: any): value is SliceMark {
+export function isSliceMarkOpen(value: SliceToken | undefined): value is SliceMark {
     return isSliceMark(value) && !value.close;
 }
 
-export function isSliceMarkClose(value: any): value is SliceMark {
+export function isSliceMarkClose(value: SliceToken | undefined): value is SliceMark {
     return isSliceMark(value) && value.close;
 }
 

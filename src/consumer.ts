@@ -133,7 +133,7 @@ function normalizeWhitespace(from: number, to: number, state: ConsumerState) {
     let hasSpace = false;
     const fragment = state.text.substring(from, to);
 
-    while (m = reSpace.exec(fragment)) {
+    while ((m = reSpace.exec(fragment))) {
         hasSpace = true;
 
         state.content += fragment.slice(prev, m.index);
