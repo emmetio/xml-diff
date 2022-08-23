@@ -279,12 +279,17 @@ function suppressWhitespace(value: string, pos: number, state: DiffState): boole
 }
 
 function getDiff(from: ParsedModel, to: ParsedModel, options: Options): Diff[] {
-    const dmp = new diff_match_patch();
-    if (options.dmp) {
-        Object.assign(dmp, options.dmp);
+    let diffs: Diff[];
+    if (options.diff) {
+        diffs = options.diff(from.content, to.content, options.dmp);
+    } else {
+        const dmp = new diff_match_patch();
+        if (options.dmp) {
+            Object.assign(dmp, options.dmp);
+        }
+        diffs = dmp.diff_main(from.content, to.content);
+        dmp.diff_cleanupSemantic(diffs);
     }
-    let diffs = dmp.diff_main(from.content, to.content);
-    dmp.diff_cleanupSemantic(diffs);
 
     if (options.replaceThreshold && getChangeThreshold(diffs) > options.replaceThreshold) {
         // Text is too different, mark it as replaced

@@ -1,3 +1,4 @@
+import type { Diff } from 'diff-match-patch';
 import { ScannerOptions, createOptions as scannerOptions } from '@emmetio/html-matcher';
 
 export interface DMPOptions {
@@ -108,6 +109,11 @@ export interface Options extends ScannerOptions {
      * Values vary from 0 to 1, but actual threshold might be larger than 1
      */
     replaceThreshold?: number;
+
+    /**
+     * Custom function to perform diff on given content
+     */
+    diff?: (from: string, to: string, opt?: Partial<DMPOptions>) => Diff[];
 }
 
 const defaultOptions: Partial<Options> = {
